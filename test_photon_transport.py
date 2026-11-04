@@ -95,6 +95,49 @@ class TransportTests(unittest.TestCase):
             self.assertEqual('necthus',peers[0].player_properties[Byte(255)])
         finally:server.server_close()
 
+    def test_steam_id_nickname_event_routes_to_actor_not_room_max_players(self):
+        class FakeSocket:
+            def __init__(self):self.replies=[]
+            def sendall(self,data):self.replies.append(data)
+        server=Server(('127.0.0.1',0),Handler,allow_room_probe=True)
+        try:
+            h=Handler.__new__(Handler);h.server=server;h.request=FakeSocket()
+            steam_id='76561197960278073'
+            h.identity={'account':'account-guid','realm':'realm','name':steam_id};h.role='game';h.room=None
+            h.operation(226,{255:'realm',249:{Byte(255):'persona'}})
+            h.request.replies.clear()
+            h.operation(252,{254:h.actor,251:{Byte(255):'persona'}})
+            packet=h.request.replies[-1]
+            self.assertEqual(bytes([0xf3,4,253]),packet[7:10])
+            params=Reader(packet[10:]).params()
+            # This is the receiving client's routing rule, independent of how
+            # the server internally represents the player/room property maps.
+            target_actor=params.get(253,0)
+            self.assertEqual(h.actor,target_actor)
+            self.assertNotEqual(0,target_actor,'A player nickname must not be read as room MaxPlayers')
+            self.assertEqual(steam_id,params[251][Byte(255)])
+            self.assertEqual({},h.room['properties'])
+        finally:server.server_close()
+
+    def test_room_property_event_uses_zero_target_and_unknown_actor_is_rejected(self):
+        class FakeSocket:
+            def __init__(self):self.replies=[]
+            def sendall(self,data):self.replies.append(data)
+        server=Server(('127.0.0.1',0),Handler,allow_room_probe=True)
+        try:
+            h=Handler.__new__(Handler);h.server=server;h.request=FakeSocket()
+            h.identity={'account':'account-guid','realm':'realm'};h.role='game';h.room=None
+            h.operation(226,{255:'realm'})
+            h.request.replies.clear()
+            h.operation(252,{251:{Byte(253):True}})
+            params=Reader(h.request.replies[-1][10:]).params()
+            self.assertEqual(0,params[253]);self.assertTrue(params[251][Byte(253)])
+            before=dict(h.room['properties'])
+            h.operation(252,{254:9999,251:{Byte(255):'76561197960278073'}})
+            self.assertEqual(before,h.room['properties'])
+            self.assertEqual(bytes([0xf3,3,252]),h.request.replies[-1][7:10])
+        finally:server.server_close()
+
     @unittest.skipUnless((Path(__file__).parent/'research/save-bundle-reference.bin').is_file(),'Optional private native save fixture is not distributed')
     def test_real_save_bundle_commits_before_success_ack(self):
         root=Path(__file__).parent/'research'

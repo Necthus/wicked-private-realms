@@ -8,14 +8,16 @@
 
 | 文件 | 用途 | 教程 |
 |---|---|---|
-| `Wicked-Private-Realms-Server-v0.1.1.zip` | 自建服务器；配置加入密码后运行 | [服务端部署](docs/SERVER.md) |
-| `Wicked-Private-Realms-Client-v29466-v0.1.1.zip` | 玩家完整客户端，含启动器、Python、Frida 和 GSE | [客户端安装](docs/CLIENT.md) |
-| `Wicked-Private-Realms-Client-Update-v29466-v0.1.1.zip` | 已有完整客户端的覆盖更新，不含运行环境 | [客户端安装](docs/CLIENT.md) |
+| `Wicked-Private-Realms-Server-v0.1.2.zip` | 自建服务器；配置加入密码后运行 | [服务端部署](docs/SERVER.md) |
+| `Wicked-Private-Realms-Client-v29466-v0.1.2.zip` | 玩家完整客户端，含启动器、Python、Frida 和 GSE | [客户端安装](docs/CLIENT.md) |
+| `Wicked-Private-Realms-Client-Update-v29466-v0.1.2.zip` | 已有完整客户端的覆盖更新，不含运行环境 | [客户端安装](docs/CLIENT.md) |
 | `SHA256SUMS.txt` | 校验下载内容 | — |
 
 服务端不需要游戏文件或 Steam。默认只开放 TCP 8443；支持 Docker 或 Python 部署，首次启动自动建立数据库和持久 TLS 证书。世界和角色保存在服主的数据目录；角色按 Steam ID 归属。
 
 客户端默认安装随包 GSE 兼容层，把其他模拟版统一到已核对的 GSE Steam API；替换前备份原 DLL/设置。随包完整 `steam_settings` 使用去个人信息的模板，Steam ID 由玩家填写。正版可取消 GSE 选项，但仍要求匹配构建，正版游玩兼容性未全面验证。
+
+v0.1.2 修复进入国度时的 Photon 玩家属性通知路由：17 位 Steam ID 昵称不会再被误当作房间最大人数。升级已有服务器后重启即可，客户端无需为该修复重装。
 
 ## 工作方式与验证范围
 

@@ -278,9 +278,12 @@ class Handler(socketserver.BaseRequestHandler):
             return True
         if self.identity is not None and op==252 and getattr(self,'room',None) is not None:
             properties=dict(params.get(251,{}) or {})
-            target=params.get(254)
-            if target is not None and target in self.room['players']:
-                if target!=self.actor:
+            target=params.get(254,0)
+            if isinstance(target,bool) or not isinstance(target,int) or target<0:
+                self.send_packet(response(op,return_code=32767,debug='Invalid property target'))
+                return True
+            if target:
+                if target!=self.actor or target not in self.room['players']:
                     self.send_packet(response(op,return_code=32767,debug='Cannot edit another player'))
                     return True
                 if Byte(255) in properties and self.identity.get('name'):
@@ -288,7 +291,11 @@ class Handler(socketserver.BaseRequestHandler):
                 self.room['players'][target].player_properties.update(properties)
             else:self.room['properties'].update(properties)
             self.send_packet(response(op))
-            for peer in list(self.room['players'].values()):peer.send_packet(event(253,{254:target or 0,251:properties}))
+            # SetProperties requests use ActorNr (254), but PropertiesChanged
+            # events use TargetActorNr (253). Omitting 253 makes RealtimeClient
+            # apply actor NickName (property 255) as room MaxPlayers (also 255).
+            # A SteamID64 nickname then throws Int32 overflow during room join.
+            for peer in list(self.room['players'].values()):peer.send_packet(event(253,{253:target,251:properties}))
             return True
         if self.identity is not None and op==254:
             self.leave_room();self.send_packet(response(op));return True
