@@ -14,6 +14,11 @@
 | `Wicked-Private-Realms-Client-Import-Fix-v0.1.3.zip` | 修复已有客户端的便携 Python 导入错误，只含启动脚本 | [客户端安装](docs/CLIENT.md) |
 | `SHA256SUMS.txt` | 校验下载内容 | — |
 
+Native candidate: `Wicked-Private-Realms-Client-Native-v0.2.0.zip` is the compiled
+client experiment. It contains WinForms + compiled host + native adapter only;
+there is no Python/Frida runtime. Use it for the native migration test after
+reading [Native migration](docs/NATIVE-MIGRATION.md); keep v0.1.3 for rollback.
+
 服务端不需要游戏文件或 Steam。默认只开放 TCP 8443；支持 Docker 或 Python 部署，首次启动自动建立数据库和持久 TLS 证书。世界和角色保存在服主的数据目录；角色按 Steam ID 归属。
 
 客户端默认安装随包 GSE 兼容层，把其他模拟版统一到已核对的 GSE Steam API；替换前备份原 DLL/设置。随包完整 `steam_settings` 使用去个人信息的模板，Steam ID 由玩家填写。正版可取消 GSE 选项，但仍要求匹配构建，正版游玩兼容性未全面验证。

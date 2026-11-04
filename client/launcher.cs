@@ -135,14 +135,18 @@ internal sealed class RealmLauncher : Form {
         }
         if(!Regex.IsMatch(name.Text.Trim(),@"^[0-9]{17}$")) { status.Text="Steam ID 必须为 17 位数字。"; return; }
         try {
+            string nativeHost=Path.Combine(root,"WickedNativeHost.exe");
+            bool useNative=File.Exists(nativeHost);
             string python=Path.Combine(root,"runtime/python.exe");
-            if(!File.Exists(python))python=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"miniconda3/python.exe");
-            if(!File.Exists(python))throw new Exception("找不到 Python 运行环境，请使用完整启动器包。");
+            if(!useNative){
+                if(!File.Exists(python))python=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"miniconda3/python.exe");
+                if(!File.Exists(python))throw new Exception("找不到原生主机或 Python 运行环境，请使用完整客户端包。");
+            }
             Directory.CreateDirectory(Path.Combine(root,"data"));
             File.WriteAllText(Path.Combine(root,"data/launcher-settings.json"),json.Serialize(new {server=server.Text.Trim(),steam_id=name.Text.Trim(),steam_mode=useGse.Checked?"gse":"native"}),new UTF8Encoding(false));
             cancelPath=Path.Combine(root,"data/launcher-cancel-"+Guid.NewGuid().ToString("N"));
-            var info=new ProcessStartInfo(python);
-            info.Arguments="\""+Path.Combine(root,"client/connect_and_launch.py")+"\" --login-stdin --cancel-file \""+cancelPath+"\""+(checkOnly?" --check":"");
+            var info=new ProcessStartInfo(useNative?nativeHost:python);
+            info.Arguments=useNative?(checkOnly?"--check":""):("\""+Path.Combine(root,"client/connect_and_launch.py")+"\" --login-stdin --cancel-file \""+cancelPath+"\""+(checkOnly?" --check":""));
             info.WorkingDirectory=Directory.GetParent(root.TrimEnd(Path.DirectorySeparatorChar)).FullName;
             info.UseShellExecute=false; info.CreateNoWindow=true;
             info.RedirectStandardInput=info.RedirectStandardOutput=info.RedirectStandardError=true;

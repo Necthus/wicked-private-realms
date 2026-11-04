@@ -14,6 +14,8 @@ The project source is MIT licensed. Separate components retain their own license
   <https://www.python.org/downloads/release/python-3132/>.
 * **cryptography**: installed as a server dependency via pip, with its upstream
   licensing: <https://github.com/pyca/cryptography>.
+* **MinHook 1.3.4**: statically linked into the native candidate adapter. The
+  BSD-2-Clause license and source are under `native/vendor/minhook`.
 
 No game executable, GameAssembly.dll, Unity assets, actual realm/character saves,
 private SSH key, server signing secret or TLS private key is included.
