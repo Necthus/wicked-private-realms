@@ -1,4 +1,4 @@
 * text=auto eol=lf
 *.cmd text eol=crlf
-plugin/gse/** -text
+plugin/gse/** -text whitespace=cr-at-eol
 *.exe -text

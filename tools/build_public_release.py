@@ -6,7 +6,7 @@ from pathlib import Path
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='v0.1.0'
+VERSION='v0.1.1'
 SERVER_MODULES=['server.py','game_backend.py','launcher_auth.py','photon_wire.py','quantum_wire.py',
     'room_simulation.py','save_wire.py','shared_saves.py','public_gateway.py','tls_transport.py','run_private_server.py']
 CLIENT_FILES=['WickedLauncher.exe','WickedLauncher.exe.config','Start-Launcher.cmd','Start-Test.cmd',
@@ -40,7 +40,8 @@ def build(root,output,runtime=None,frida=None):
     server.update({'tools/photon_tcp_probe.py':root/'tools/photon_tcp_probe.py','requirements.txt':root/'requirements.txt',
         'server-config.example.json':root/'deploy/server-config.example.json','Dockerfile':root/'deploy/Dockerfile',
         'compose.yaml':root/'deploy/compose.yaml','wicked-private-realms.service':root/'deploy/standalone.service',
-        'README.md':root/'docs/SERVER.md','LICENSE':root/'LICENSE','THIRD_PARTY.md':root/'THIRD_PARTY.md'})
+        'README.md':root/'docs/SERVER.md','LICENSE':root/'LICENSE','THIRD_PARTY.md':root/'THIRD_PARTY.md',
+        '.dockerignore':root/'.dockerignore'})
     checks=[create_zip(output/('Wicked-Private-Realms-Server-'+VERSION+'.zip'),'wicked-private-realms-server',server)]
     client={name:root/name for name in CLIENT_FILES}
     client.update({'README.md':root/'docs/CLIENT.md','LICENSE':root/'LICENSE','THIRD_PARTY.md':root/'THIRD_PARTY.md',
@@ -62,6 +63,6 @@ def build(root,output,runtime=None,frida=None):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',type=Path,default=ROOT)
-    parser.add_argument('--output',type=Path,default=ROOT/'releases/public-v0.1.0')
+    parser.add_argument('--output',type=Path,default=ROOT/'releases'/('public-'+VERSION))
     parser.add_argument('--runtime',type=Path);parser.add_argument('--frida',type=Path)
     args=parser.parse_args();build(args.root,args.output,args.runtime,args.frida)

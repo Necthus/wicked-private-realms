@@ -5,7 +5,7 @@
 ## Docker 部署
 
 1. 解压服务端包，进入目录，将 `server-config.example.json` 复制为 `server-config.json`。
-2. 修改 `join_password`；可按需修改监听端口和数据目录。
+2. 修改 `join_password`。Docker 部署保留容器内端口 8443 和 `data_directory=server-data`，以对应预设的端口及卷映射。
 3. 执行 `docker compose up -d --build`。
 4. 在云安全组和主机防火墙中放行入站 **TCP 8443**。客户端填写 `服务器公网IP:8443`。
 
@@ -20,7 +20,7 @@
 }
 ```
 
-Compose 默认把主机 8443 映射到容器 8443；更改主机端口可设置 `REALM_PORT`，容器内配置保持 8443。查看日志：`docker compose logs -f`。停止：`docker compose down`，不要删除 `server-data`。
+Compose 默认把主机 8443 映射到容器 8443；更改主机端口可设置 `REALM_PORT`，容器内配置保持 8443。宿主机存档路径可调整 compose.yaml 的卷映射左侧。包内 `.dockerignore` 排除运行密码配置、存档和 TLS 私钥，重建镜像时保留该文件。查看日志：`docker compose logs -f`。停止：`docker compose down`，不要删除 `server-data`。
 
 ## Python 部署
 

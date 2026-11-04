@@ -7,6 +7,9 @@ releases
 data
 transport
 server-data
+server-config.json
+*.pem
+*.key
 .venv
 __pycache__
 test_*.py
