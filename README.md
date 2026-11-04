@@ -14,10 +14,7 @@
 | `Wicked-Private-Realms-Client-Import-Fix-v0.1.3.zip` | 修复已有客户端的便携 Python 导入错误，只含启动脚本 | [客户端安装](docs/CLIENT.md) |
 | `SHA256SUMS.txt` | 校验下载内容 | — |
 
-Native candidate: `Wicked-Private-Realms-Client-Native-v0.2.0.zip` is the compiled
-client experiment. It contains WinForms + compiled host + native adapter only;
-there is no Python/Frida runtime. Use it for the native migration test after
-reading [Native migration](docs/NATIVE-MIGRATION.md); keep v0.1.3 for rollback.
+**原生客户端候选 v0.2.2-native**：[下载无 Python/Frida 的编译版](https://github.com/Necthus/wicked-private-realms/releases/tag/v0.2.2-native)。约 2.5 MiB，包含启动器、编译主机、注入 DLL 与 GSE；需要 .NET Framework 4.8。已完成本地独立数据库入场、保存和返回菜单回归，仍待完整双机游戏测试。见 [原生迁移与回退](docs/NATIVE-MIGRATION.md)。稳定客户端继续使用 v0.1.3；早期原生候选已撤回。
 
 服务端不需要游戏文件或 Steam。默认只开放 TCP 8443；支持 Docker 或 Python 部署，首次启动自动建立数据库和持久 TLS 证书。世界和角色保存在服主的数据目录；角色按 Steam ID 归属。
 

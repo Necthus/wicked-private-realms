@@ -89,6 +89,20 @@ static void PatchSdk(void *sdk) {
 
 typedef void (__cdecl *MoveNext)(void *, void *);
 static MoveNext g_login, g_request;
+static MoveNext g_tick, g_game_started;
+typedef void (__cdecl *PlayerAdded)(void *, void *, int, int, void *);
+static PlayerAdded g_added;
+static void __cdecl TickHook(void *self, void *method) {
+    static LONG last_state = -100;
+    int state = *(int *)((BYTE *)self + 0x10);
+    if (state != last_state) { InterlockedExchange(&last_state, state); Log("native-session-state", state); }
+    g_tick(self, method);
+}
+static void __cdecl StartedHook(void *self, void *method) { Log("native-game-started", 1); g_game_started(self, method); }
+static void __cdecl AddedHook(void *self, void *frame, int slot, int player, void *method) {
+    Log("native-player-add-confirmed", frame ? *(int *)((BYTE *)frame + 0x28) : -1);
+    g_added(self, frame, slot, player, method);
+}
 static void __cdecl LoginHook(void *self, void *method) {
     void *backend = *(void **)((BYTE *)self + 0x20);
     if (*(int *)self == -1) { *(void **)((BYTE *)self + 0x30) = ManagedCached(4); Log("private-login-token-bound", 1); }
@@ -253,13 +267,16 @@ static void InstallGameHooks(HMODULE module) {
         !AddHook(0x771bc50, Uri3Hook, (void **)&g_uri3) ||
         !AddHook(0x70a2940, OutgoingHook, (void **)&g_outgoing) ||
         !AddHook(0x70a2e90, AcksHook, (void **)&g_acks) ||
-        !AddHook(0x70a3340, PingHook, (void **)&g_ping)) { Fatal(106, "game-hook-install-failed"); return; }
+        !AddHook(0x70a3340, PingHook, (void **)&g_ping) ||
+        !AddHook(0x871c5d0, TickHook, (void **)&g_tick) ||
+        !AddHook(0x8719090, StartedHook, (void **)&g_game_started) ||
+        !AddHook(0x5bf6470, AddedHook, (void **)&g_added)) { Fatal(106, "game-hook-install-failed"); return; }
     void *send = (void *)GetProcAddress(GetModuleHandleW(L"ws2_32.dll"), "send");
     if (!send || MH_CreateHook(send, SendHook, (void **)&g_send) != MH_OK || MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
         Fatal(107, "native-network-hook-failed"); return;
     }
     InterlockedExchange(&g_config->status, 3);
-    Log("native-game-hooks-installed", 14);
+    Log("native-game-hooks-installed", 17);
 }
 typedef NTSTATUS (NTAPI *LdrLoad)(PWSTR, PULONG, PUNICODE_STRING, PHANDLE);
 static LdrLoad g_ldr_load;

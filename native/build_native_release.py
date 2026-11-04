@@ -1,31 +1,36 @@
-"""Build the no-Python Windows client package."""
+"""Package only compiled client binaries and verified third-party GSE files."""
 from pathlib import Path
-import hashlib,json,shutil,zipfile
-ROOT=Path(__file__).resolve().parent.parent
-VERSION='v0.2.1-native';NATIVE=ROOT/'native';OUT=ROOT/('releases/public-'+VERSION);OUT.mkdir(parents=True,exist_ok=True)
+import hashlib
+import json
+import zipfile
 
-def add(archive,name,path):archive.write(path,'wicked-client/'+name)
+ROOT=Path(__file__).resolve().parent.parent
+VERSION='v0.2.2-native'
+
 
 def main():
-    # The binaries are built by build_native.py/build_host.py before this script.
-    required=[NATIVE/'dist/WickedAdapter.dll',NATIVE/'dist/WickedNativeHost.exe']
-    for path in required:
-        if not path.is_file():raise SystemExit('Build missing: '+str(path))
-    with zipfile.ZipFile(OUT/('Wicked-Private-Realms-Client-Native-v29466-'+VERSION+'.zip'),'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
-        for name in ('WickedLauncher.exe','WickedLauncher.exe.config','Start-Launcher.cmd','Start-Test.cmd','Check-Connection.cmd'):
-            add(archive,name,ROOT/name)
-        add(archive,'WickedNativeHost.exe',NATIVE/'dist/WickedNativeHost.exe');add(archive,'WickedAdapter.dll',NATIVE/'dist/WickedAdapter.dll')
-        for path in (ROOT/'plugin/gse').rglob('*'):
-            if path.is_file():add(archive,path.relative_to(ROOT).as_posix(),path)
-        for name in ('CLIENT.md','RELEASE_NOTES.md'):
-            add(archive,'docs/'+name,ROOT/'docs'/name)
-        add(archive,'LICENSE',ROOT/'LICENSE');add(archive,'THIRD_PARTY.md',ROOT/'THIRD_PARTY.md')
+    native=ROOT/'native';output=ROOT/'releases'/('public-'+VERSION);output.mkdir(parents=True,exist_ok=True)
+    entries={name:ROOT/name for name in ('WickedLauncher.exe','WickedLauncher.exe.config','Start-Launcher.cmd','Start-Test.cmd','Check-Connection.cmd','LICENSE','THIRD_PARTY.md')}
+    entries.update({name:native/'dist'/name for name in ('WickedNativeHost.exe','WickedAdapter.dll')})
+    entries.update({p.relative_to(ROOT).as_posix():p for p in (ROOT/'plugin/gse').rglob('*') if p.is_file()})
+    entries['README.md']=ROOT/'docs/NATIVE-MIGRATION.md'
+    entries['native/MinHook-LICENSE.txt']=native/'vendor/minhook/LICENSE.txt'
+    path=output/('Wicked-Private-Realms-Client-Native-v29466-'+VERSION+'.zip')
+    with zipfile.ZipFile(path,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
+        for name,file in sorted(entries.items()):archive.write(file,'wicked-client/'+name)
         archive.writestr('wicked-client/data/launcher-settings.json',json.dumps({'server':'','steam_id':'','steam_mode':'gse'},indent=2))
-        archive.writestr('wicked-client/native/README.md',(NATIVE/'README.md').read_bytes())
-        archive.writestr('wicked-client/native/BUILD-METADATA.json',json.dumps({'mode':'native','python_runtime_included':False,'frida_runtime_included':False,'game_build':'29466','adapter':'WickedAdapter.dll','host':'WickedNativeHost.exe'},indent=2))
-    path=OUT/('Wicked-Private-Realms-Client-Native-v29466-'+VERSION+'.zip')
+        archive.writestr('wicked-client/native/BUILD-METADATA.json',json.dumps({'mode':'native','version':VERSION,
+            'python_runtime_included':False,'frida_runtime_included':False,'game_build':'29466',
+            'files':{name:hashlib.sha256(entries[name].read_bytes()).hexdigest() for name in ('WickedLauncher.exe','WickedNativeHost.exe','WickedAdapter.dll')}},indent=2))
+    with zipfile.ZipFile(path) as archive:
+        if archive.testzip() is not None:raise ValueError('Invalid ZIP')
+        for name in archive.namelist():
+            if any(part in name.split('/') for part in ('runtime','transport','server-trust','server-data','integration','frida-compat')) or name.endswith(('.py','.js','.sqlite3','.key','.pem')):
+                raise ValueError('Unexpected runtime or private state: '+name)
+        if hashlib.sha256(archive.read('wicked-client/plugin/gse/steam_api64.dll')).hexdigest()!='723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88':raise ValueError('Wrong GSE DLL')
     with path.open('rb') as file:digest=hashlib.file_digest(file,'sha256').hexdigest()
-    (OUT/'SHA256SUMS.txt').write_text(digest+'  '+path.name+'\n',encoding='ascii')
-    print(json.dumps({'asset':path.name,'bytes':path.stat().st_size,'sha256':digest}))
+    (output/'SHA256SUMS.txt').write_text(digest+'  '+path.name+'\n',encoding='ascii')
+    print(json.dumps({'file':str(path),'bytes':path.stat().st_size,'sha256':digest}))
+
 
 if __name__=='__main__':main()

@@ -15,3 +15,7 @@ tools/client-runtime/
 research/runs/
 research/client-adapter.jsonl
 research/test-player.log
+native/build/
+native/dist/
+native/selftest/
+native/integration/

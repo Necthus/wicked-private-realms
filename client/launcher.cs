@@ -122,7 +122,7 @@ internal sealed class RealmLauncher : Form {
         output.AppendText(line+Environment.NewLine);
         if(line.StartsWith("Steam identity: "))name.Text=line.Substring("Steam identity: ".Length).Trim();
         if(line.StartsWith("Signed in: ") || line.StartsWith("Created account: "))status.Text="已登录。启动游戏时会校验客户端版本，请稍候。";
-        if(line.Contains("\"event\": \"launched\""))status.Text="游戏已启动。请保持启动器打开。";
+        if(line.Contains("\"event\": \"launched\"")||line.Contains("\"event\":\"launched\""))status.Text="游戏已启动。请保持启动器打开。";
     }
     void SetRunning(bool active) {
         start.Enabled=check.Enabled=server.Enabled=password.Enabled=name.Enabled=useGse.Enabled=!active;
@@ -146,7 +146,7 @@ internal sealed class RealmLauncher : Form {
             File.WriteAllText(Path.Combine(root,"data/launcher-settings.json"),json.Serialize(new {server=server.Text.Trim(),steam_id=name.Text.Trim(),steam_mode=useGse.Checked?"gse":"native"}),new UTF8Encoding(false));
             cancelPath=Path.Combine(root,"data/launcher-cancel-"+Guid.NewGuid().ToString("N"));
             var info=new ProcessStartInfo(useNative?nativeHost:python);
-            info.Arguments=useNative?(checkOnly?"--check":""):("\""+Path.Combine(root,"client/connect_and_launch.py")+"\" --login-stdin --cancel-file \""+cancelPath+"\""+(checkOnly?" --check":""));
+            info.Arguments=useNative?("--cancel-file \""+cancelPath+"\""+(checkOnly?" --check":"")):("\""+Path.Combine(root,"client/connect_and_launch.py")+"\" --login-stdin --cancel-file \""+cancelPath+"\""+(checkOnly?" --check":""));
             info.WorkingDirectory=Directory.GetParent(root.TrimEnd(Path.DirectorySeparatorChar)).FullName;
             info.UseShellExecute=false; info.CreateNoWindow=true;
             info.RedirectStandardInput=info.RedirectStandardOutput=info.RedirectStandardError=true;

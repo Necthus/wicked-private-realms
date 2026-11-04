@@ -1,50 +1,55 @@
-# Native client v0.2.0 candidate
+# 原生客户端 v0.2.2-native（完整游戏测试候选）
 
-The native candidate replaces the Python/Frida runtime with three compiled pieces:
+客户端已改为编译产物，不携带 Python、Frida、JavaScript 或 runtime 文件夹。服务端仍使用现有 v0.1.4 Python 实现，本次不要求迁移世界数据或升级服务器。
 
-* `WickedLauncher.exe`: WinForms UI. It starts `WickedNativeHost.exe` when present.
-* `WickedNativeHost.exe`: .NET Framework 4.8 host. It performs TLS login,
-  certificate trust, loopback API/Photon bridges, Steam/GSE configuration,
-  suspended game startup, and DLL injection.
-* `WickedAdapter.dll`: native x64 C DLL using MinHook v1.3.4. It validates the
-  v29466 PE layout, receives a short-lived config through a named mapping,
-  installs build-specific IL2CPP/Photon hooks and repairs the private ping.
+## 安装与使用
 
-The native package has no Python, Frida, JavaScript engine or runtime directory.
-The old Python package remains available as the v0.1.x rollback. Do not replace
-the stable package for every player until the full game regression is complete.
+1. 关闭旧启动器和游戏，将原 wicked-client 文件夹改名保留备份。
+2. 将本原生包中的整个 wicked-client 放在 NoRestForTheWicked.exe 旁。不要把新旧包混合，以便确认没有调用旧运行环境。
+3. 运行 WickedLauncher.exe。填写服务器地址（默认 TLS 8443，可填 IP:端口）、加入密码和 17 位 Steam ID。
+4. 模拟版保持 GSE 选中；正版可取消，但仍必须匹配 v29466 构建与实际 Steam ID。检查连接通过后启动游戏。
+5. 游戏运行期间保持启动器打开；先在游戏中返回菜单保存后再退出。“停止”或直接关闭启动器会结束本次游戏进程，未确认保存可能丢失。
 
-## Current native validation
+需要 Windows x64 和 .NET Framework 4.8（Windows 10/11 通常已自带）。不需要 Python、Frida、SSH 密钥或管理员级 HTTP 端口授权。本机端口 18769/18770 仍需空闲；两个客户端不能同时占用同一机器的这两个端口。
 
-* MSVC x64 and Windows SDK build succeeds with `/MT`.
-* `WickedAdapterSelfTest` returns `0x1F`: MinHook detour, SDK endpoint strings,
-  private peer address filter, and token mapping checks pass.
-* Native host direct TLS login and `--check` pass against AliyunServer.
-* A native-host game launch was performed against v29466: GSE install/identity,
-  online session start, player-add frame 120, confirmed input, and repeated
-  save cycles completed. No original DLL was rewritten; GSE replacement was
-  backed up by the installer.
+Windows 可能为新 EXE 弹出防火墙提示。客户端只监听 127.0.0.1，向服务器发起出站 TLS；不用开放客户端公网入站端口。不要关闭系统安全功能。服务器仍需按服务端教程放行 TLS 端口。
 
-## Still required before calling it stable
+## 包内结构
 
-Manually test the native package with the full game UI: movement, combat,
-chat, two machines in the same realm, map transition, return to menu, re-entry,
-crash/reconnect, and long-running save cycles. Verify the native adapter log and
-server transport log after every run. A native launch that reaches simulation and
-saves is strong evidence, but it does not replace this full client regression.
+* WickedLauncher.exe：WinForms 界面，启动编译后的主机。
+* WickedNativeHost.exe：Steam/GSE 配置与身份读取、证书指纹检查、TLS API 和二进制桥、游戏进程生命周期。
+* WickedAdapter.dll：静态链接 MSVC 运行库与 MinHook 的 x64 DLL；游戏进程内安装 IL2CPP/Photon 适配钩子。
+* plugin/gse：既有已核对 DLL 和全部 8 个设置模板；替换其他模拟器前会备份原文件。同一 GSE 上的个人配置保持原值，仅绑定 Steam ID。
 
-## Build
+主机会完整校验已记录的 GameAssembly SHA-256，挂起游戏并使用 Windows 加载器加载适配 DLL，再调用它的初始化导出；确认共享内存握手成功后才恢复主线程。会话通过仅当前用户/System 可访问的共享内存传递，不写入参数或磁盘。DLL 再检查 PE 布局。失败则结束本次创建的游戏进程。
 
-From Windows with Visual Studio Build Tools and the Windows SDK:
+证书首次信任（TOFU）路径与旧 Python 客户端相同；后续证书变化时拒绝连接。Steam ID 仍是私服账号索引，不是 Steam 所有权认证。图形设置和 Steam ID 本地存档路径不覆盖。
+
+## 日志与已验证内容
+
+* research/native-adapter.jsonl：本次原生 DLL 的初始化、钩子安装、入场状态。
+* research/native-game.log：实际原生会话的 Unity 日志，不与旧 test-player.log 混用。
+* 启动器日志显示 Native adapter initialized before game resume 和 hooks installed，表示初始化握手成功。
+
+已完成：15 项编译主机自测、DLL 自测 0x1F、原生主机对 Python 网关的密码/证书/HTTP/2 MiB 双向流测试、实际游戏登录与主菜单。使用备份数据库的本地测试服务，已通过游戏原有流程进入在线场景，确认玩家第 120 帧加入、持续确认帧、两次定时保存、返回菜单时最终保存和玩家移除。关闭主机后本次游戏进程被自动回收。测试后恢复本地存档与 GSE 设置；生产国度未参与此次游戏测试。
+
+开发测试用 Python/Frida 读取状态并在主更新线程调用游戏原有入场/退出流程，未用 Frida 替代原生适配功能；这些开发工具不进入客户端包。实际手动移动、战斗、聊天、双机同步、地图切换、重连和长期运行仍需完整回归。因此本包是候选版本，v0.1.3 Python 客户端继续作为回退。
+
+## 回退
+
+退出原生游戏与启动器，将本文件夹移开，恢复之前保留的 wicked-client（或重新下载 v0.1.3 完整客户端）。不要让旧包目录中残留 WickedNativeHost.exe，否则混合版启动器可能优先选择原生主机。世界与角色仍在原服务器，不需要转换数据库。
+
+## 开发构建
+
+源代码在 native/host/*.cs 和 native/adapter/adapter.c。Windows 上安装 Visual Studio Build Tools 与 Windows SDK 后，可用开发机 Python 构建（Python 只用于构建脚本，不在发布包中）：
 
 ```powershell
 python native/build_native.py
 python native/build_host.py
 python native/build_selftest.py
-python native/build_native_release.py
+native/dist/WickedNativeHost.exe --self-test
 ```
 
-MinHook source and license are vendored under `native/vendor/minhook`. The native
-adapter is not a general-purpose DLL injector: it only accepts the exact recorded
-GameAssembly image size/timestamp and the client-created mapping, and it fails
-closed on mismatches.
+将编译主机和 DLL 放入客户端目录，使用 client/launcher.cs 构建 x64 WinForms 启动器，再运行 native/build_native_release.py。MinHook v1.3.4 源码与许可证随仓库提供。
+
+审计记录：早期 v0.2.1-native 的游戏成功说明误读了旧日志，已撤回到草稿，不应使用。v0.2.2-native 新增显式初始化握手、独立日志、完整 SHA 校验、当前用户共享内存 ACL、进程 job 回收、证书拒绝测试，并使用独立数据库重新验证。
