@@ -6,7 +6,7 @@ from pathlib import Path
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='v0.1.3'
+VERSION='v0.1.4'
 SERVER_MODULES=['server.py','game_backend.py','launcher_auth.py','photon_wire.py','quantum_wire.py',
     'room_simulation.py','save_wire.py','shared_saves.py','public_gateway.py','tls_transport.py','run_private_server.py']
 CLIENT_FILES=['WickedLauncher.exe','WickedLauncher.exe.config','Start-Launcher.cmd','Start-Test.cmd',

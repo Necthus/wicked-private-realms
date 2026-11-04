@@ -190,7 +190,7 @@ class Handler(socketserver.BaseRequestHandler):
             emit('room-event',code=code,data_type=type(data).__name__,size=len(data) if isinstance(data,(bytes,str,list,dict)) else None,
                  targets=params.get(252),receiver_group=params.get(246))
             if getattr(self.server,'shared_simulation',False):
-                return self.shared_message(code,data)
+                return self.shared_message(code,data,params)
             if isinstance(data,bytes) and code in (100,101):
                 if data and data[0]==21:
                     (LOG.parent/'quantum-start-request.bin').write_bytes(data)
@@ -302,7 +302,7 @@ class Handler(socketserver.BaseRequestHandler):
         self.request.sendall(frame(response(op,return_code=32767,debug='Private protocol research: operation not implemented')))
         return False
 
-    def shared_message(self,code,data):
+    def shared_message(self,code,data,event_options=None):
         if not isinstance(data,bytes):raise ValueError('Expected binary shared-session message')
         if code in (100,101) and data and data[0]==21:
             request=start_request(data)
@@ -340,7 +340,26 @@ class Handler(socketserver.BaseRequestHandler):
                 if len(set(values.values()))>1:emit('shared-checksum-mismatch',tick=tick,actors=list(values))
                 while len(checks)>120:checks.pop(min(checks))
         elif code==7:
-            for peer in list(self.room['players'].values()):peer.send_packet(event(7,{245:data,254:self.actor}))
+            options=event_options or {}
+            with self.server.room_lock:players=dict(self.room['players'])
+            targets=options.get(252)
+            if targets is not None:
+                recipients={actor for actor in targets if actor in players}
+            else:
+                # Photon defaults to Others when ReceiverGroup is omitted.
+                # The retail chat UI has already displayed the sender's line.
+                group=options.get(246,0)
+                if group==0:recipients=set(players)-{self.actor}
+                elif group==1:recipients=set(players)
+                elif group==2:recipients={min(players)} if players else set()
+                else:raise ValueError('Unsupported chat receiver group')
+            packet=event(7,{245:data,254:self.actor})
+            sent=[]
+            for actor,peer in players.items():
+                if actor in recipients:
+                    try:peer.send_packet(packet);sent.append(actor)
+                    except OSError:pass  # A departing peer must not disconnect the sender.
+            emit('shared-chat-forwarded',actor=self.actor,recipients=sorted(sent),bytes=len(data))
         elif code==9:emit('shared-client-loaded',actor=self.actor)
         else:emit('shared-unhandled-game-event',code=code,length=len(data))
         return True
