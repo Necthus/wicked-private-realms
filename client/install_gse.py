@@ -6,11 +6,11 @@ import json
 import os
 from pathlib import Path,PurePosixPath
 import shutil
-
-try:from .steam_identity import validate_steam_id,bind_config,configured_identity
-except ImportError:from steam_identity import validate_steam_id,bind_config,configured_identity
+import sys
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+from client.steam_identity import validate_steam_id,bind_config,configured_identity
 PINNED_GSE_SHA256='723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88'
 
 

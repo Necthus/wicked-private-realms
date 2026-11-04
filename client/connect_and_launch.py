@@ -12,9 +12,9 @@ import urllib.request
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from tls_transport import server_address
-from steam_identity import bind_config,discover_identity,validate_steam_id
-from install_gse import install_gse
-from direct_connection import DirectBridge,remote_login
+from client.steam_identity import bind_config,discover_identity,validate_steam_id
+from client.install_gse import install_gse
+from client.direct_connection import DirectBridge,remote_login
 
 
 def main():

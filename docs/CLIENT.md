@@ -33,3 +33,9 @@
 游戏日志：`research/test-player.log`；适配器日志：`research/client-adapter.jsonl`。反馈问题时提供现象和日志中的错误文字，勿发送 `data` 中的会话或服务器私钥。
 
 GSE 为独立的 LGPL 第三方组件，其许可证和来源说明随包提供。项目 MIT 许可证不覆盖 GSE、Python、Frida 或游戏本身。
+
+## 旧包的 ModuleNotFoundError 修复
+
+如果出现 `No module named steam_identity`，可下载 v0.1.3 的 Client-Import-Fix 小补丁。关闭游戏和启动器，将 ZIP 内的 `wicked-client` 文件夹复制到游戏 EXE 所在目录，合并替换已有同名文件夹。无需另装 Python，不覆盖既有运行环境、Steam ID 设置或缓存。也可下载新版完整客户端。
+
+原因是 Windows 嵌入式 Python 的 _pth 隔离配置不自动加入脚本目录；新版入口显式注册客户端根路径并按 client 包导入。三个脚本入口已在实际便携运行环境、与游戏无关的临时工作目录中验证。

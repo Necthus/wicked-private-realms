@@ -6,12 +6,12 @@ from pathlib import Path
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='v0.1.2'
+VERSION='v0.1.3'
 SERVER_MODULES=['server.py','game_backend.py','launcher_auth.py','photon_wire.py','quantum_wire.py',
     'room_simulation.py','save_wire.py','shared_saves.py','public_gateway.py','tls_transport.py','run_private_server.py']
 CLIENT_FILES=['WickedLauncher.exe','WickedLauncher.exe.config','Start-Launcher.cmd','Start-Test.cmd',
     'Check-Connection.cmd','Install-GSE.cmd','tls_transport.py','research/client-fingerprint.json']
-CLIENT_FILES+=['client/'+name for name in ('launch.py','redirect.js','ping_fix.js','client_identity.py',
+CLIENT_FILES+=['client/'+name for name in ('__init__.py','launch.py','redirect.js','ping_fix.js','client_identity.py',
     'steam_identity.py','install_gse.py','direct_connection.py','connect_and_launch.py','launcher.cs',
     'launcher.manifest','LAUNCHER-README.md')]
 
@@ -49,6 +49,10 @@ def build(root,output,runtime=None,frida=None):
     for path in (root/'plugin/gse').rglob('*'):
         if path.is_file():client[path.relative_to(root).as_posix()]=path
     checks.append(create_zip(output/('Wicked-Private-Realms-Client-Update-v29466-'+VERSION+'.zip'),'wicked-client',client))
+    import_fix={name:client[name] for name in ('client/__init__.py','client/connect_and_launch.py','client/install_gse.py','client/launch.py')}
+    import_fix['README.txt']=('Close the game and launcher. Extract this ZIP into the game directory, merging the existing wicked-client folder. '
+        'Keep your existing runtime, GSE, settings and data folders. Then run WickedLauncher.exe.').encode()
+    checks.append(create_zip(output/('Wicked-Private-Realms-Client-Import-Fix-'+VERSION+'.zip'),'wicked-client',import_fix))
     if runtime is not None and frida is not None:
         full=dict(client)
         for directory,prefix in [(Path(runtime),'runtime'),(Path(frida),'tools/frida-compat')]:

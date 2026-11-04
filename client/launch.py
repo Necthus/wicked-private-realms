@@ -12,10 +12,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
 compat_runtime=ROOT/'tools/frida-compat'
 sys.path.insert(0, str(compat_runtime if (compat_runtime/'frida').is_dir() else ROOT/'tools/python-deps'))
-import frida
-from client_identity import cache_directory, game_arguments
+from client.client_identity import cache_directory, game_arguments
 
 
 def main():
@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--skip-prologue-entry-test', action='store_true', help='Diagnostic only: skip the local prologue branch when requesting a realm')
     parser.add_argument('--transport-probe', action='store_true', help='Direct Photon TCP to the local research listener; not a playable server')
     args = parser.parse_args()
+    import frida
     profile = json.loads(args.profile.read_text(encoding='utf-8'))
     args.endpoint = args.endpoint or profile['endpoint']
     if urlsplit(args.endpoint).hostname not in ('127.0.0.1', 'localhost'):
