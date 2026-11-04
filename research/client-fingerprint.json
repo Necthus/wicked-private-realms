@@ -1,0 +1,14 @@
+{
+  "GameAssembly.dll": {
+    "size": 217805824,
+    "sha256": "5b00ee90833b1be2ea73e01cb83e710e09e86199d12ac769be3c0e82add8b4bb"
+  },
+  "NoRestForTheWicked.exe": {
+    "size": 667136,
+    "sha256": "8f6b1ed8b8964f24f62b3fa1dbbc2d97a419042d195f30656d5a519a7738cf53"
+  },
+  "NoRestForTheWicked_Data/il2cpp_data/Metadata/global-metadata.dat": {
+    "size": 31206504,
+    "sha256": "4c8dfe07e5f5178f8eefd3d079412ec164eba5da798efd2a2ae03aa37dc79502"
+  }
+}

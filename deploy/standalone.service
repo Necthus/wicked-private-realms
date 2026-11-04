@@ -1,0 +1,15 @@
+[Unit]
+Description=Wicked Private Realms standalone TLS server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/wicked-private-realms
+ExecStart=/opt/wicked-private-realms/.venv/bin/python run_private_server.py --config server-config.json
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

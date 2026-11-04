@@ -1,0 +1,76 @@
+{
+  "vectors": [
+    {
+      "name": "RttUpdate",
+      "value": 80,
+      "bits": 40,
+      "hex": "0a50000000"
+    },
+    {
+      "name": "FrameSnapshotRequest",
+      "value": 1234,
+      "bits": 40,
+      "hex": "11d2040000"
+    },
+    {
+      "name": "SimulationStop",
+      "value": 777,
+      "bits": 40,
+      "hex": "0609030000"
+    },
+    {
+      "name": "RemovePlayer",
+      "value": 2,
+      "bits": 40,
+      "hex": "1202000000"
+    },
+    {
+      "name": "TickChecksum",
+      "value": 1000,
+      "bits": 104,
+      "hex": "08e803000015cd5b0700000000"
+    },
+    {
+      "name": "Disconnect",
+      "value": "test-disconnect",
+      "bits": 145,
+      "hex": "0c1e00e8cae6e85ac8d2e6c6dedcdccac6e800"
+    },
+    {
+      "name": "Disconnect",
+      "value": "",
+      "bits": 25,
+      "hex": "0c000000"
+    },
+    {
+      "name": "Disconnect",
+      "value": "\u6d4b\u8bd5",
+      "bits": 73,
+      "hex": "0c0c00cc6b17d15f2b01"
+    },
+    {
+      "name": "Disconnect",
+      "value": null,
+      "bits": 9,
+      "hex": "0c01"
+    },
+    {
+      "name": "AddPlayer",
+      "value": 1,
+      "bits": 89,
+      "hex": "0b010000000900000204fe01"
+    },
+    {
+      "name": "Command",
+      "value": 2,
+      "bits": 121,
+      "hex": "0e020000007b0000000900000204fe01"
+    },
+    {
+      "name": "FrameSnapshot",
+      "value": 456,
+      "bits": 122,
+      "hex": "0dc8010000040000001300000408fc03"
+    }
+  ]
+}

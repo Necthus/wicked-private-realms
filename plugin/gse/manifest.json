@@ -1,0 +1,22 @@
+{
+  "component": "GSE Steam API (Windows x64)",
+  "dll_sha256": "723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88",
+  "file_version": "08.33.09.23",
+  "source_control_id": "8330923",
+  "upstream": "https://github.com/Detanup01/gbe_fork",
+  "upstream_license": "LGPL-3.0",
+  "personal_config_sanitized": true,
+  "files": {
+    "LICENSE.GPL-3.0.txt": "fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0",
+    "LICENSE.LGPL-3.0.txt": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+    "steam_api64.dll": "723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88",
+    "steam_settings/branches.json": "4bb681f7db5944c93d8a83f588c2c99809c1312db850047792765b0fc70c6b62",
+    "steam_settings/configs.app.ini": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "steam_settings/configs.main.ini": "a78aa33ac06b354e520885a7214517db3a8e1a5a4c59f4d5d6a535ad4830bda4",
+    "steam_settings/configs.overlay.ini": "05965a56b54d8b78f3d2d9fbfd4f08f2e85ec9001bd122eecc12109a4f28a346",
+    "steam_settings/configs.user.ini": "f493f0a71c1d10d6edd0f5f7858ba5b82bba93e6ebb2e21578f4759bf646dfe9",
+    "steam_settings/depots.txt": "c308b10d33215c8a4c50f93f94c9b8e417654c5db9c04b6648d4d7da97991c60",
+    "steam_settings/steam_appid.txt": "c1ccc40d5af6e916acba64adbcc86a514e8016412d4b65fe9c3920a448fb0472",
+    "steam_settings/supported_languages.txt": "e1bd4a6a4acb36a45aa30fd73816e2f29cfb2f08d4d75f24bbded9d3c97498dd"
+  }
+}

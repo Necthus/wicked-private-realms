@@ -1,0 +1,19 @@
+{
+  "Generator": 22,
+  "OakleyPrime768": "ffffffffffffffff20363aa6e9424cf4c67e5e6276b585e445c2516d6d35e14f37145ff26d0a2b301b433acdb31995efdd04348e79084a51229b133ba6be0b0274cc678a084e0229d11cdc808b62c6c434c26821a2da0fc9ffffffffffffffff00",
+  "responses": [
+    {
+      "includeKey": false,
+      "hex": "0000000800"
+    },
+    {
+      "includeKey": true,
+      "hex": "000000080101430401020304"
+    }
+  ],
+  "syntheticCrypto": {
+    "publicKey": "2ac73e6e4871a2b16108c1698c4e2c6ac7f901226b6fb093c57e4e9193627c2cb2f7e2840ff21189fa580933a5f817fe75650c4b7c45f3c9162e6052a414ea599fc32ea9180ba7722336ccadd19108e0bc5d3c672fde3fa565f162aab2fb4921",
+    "sharedKey": "2ac73e6e4871a2b16108c1698c4e2c6ac7f901226b6fb093c57e4e9193627c2cb2f7e2840ff21189fa580933a5f817fe75650c4b7c45f3c9162e6052a414ea599fc32ea9180ba7722336ccadd19108e0bc5d3c672fde3fa565f162aab2fb4921",
+    "ciphertext": "5185f6a605726d533d0c2884e2e0e9ba"
+  }
+}

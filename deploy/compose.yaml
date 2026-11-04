@@ -1,0 +1,9 @@
+services:
+  wicked-private-realms:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${REALM_PORT:-8443}:8443"
+    volumes:
+      - ./server-config.json:/app/server-config.json:ro
+      - ./server-data:/app/server-data

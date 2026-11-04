@@ -1,0 +1,6 @@
+{
+  "listen": "0.0.0.0",
+  "port": 8443,
+  "join_password": "CHANGE_ME",
+  "data_directory": "server-data"
+}

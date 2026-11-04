@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+data/
+logs/
+transport/
+server-data/
+server-config.json
+*.sqlite3*
+*.env
+*.pem
+releases/
+tools/frida-compat/
+tools/client-runtime/
+research/runs/
+research/client-adapter.jsonl
+research/test-player.log
