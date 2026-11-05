@@ -41,7 +41,7 @@ Windows 可能为新 EXE 弹出防火墙提示。客户端只监听 127.0.0.1，
 
 ## 开发构建
 
-源代码在 native/host/*.cs 和 native/adapter/adapter.c。Windows 上安装 Visual Studio Build Tools 与 Windows SDK 后，可用开发机 Python 构建（Python 只用于构建脚本，不在发布包中）：
+源代码在 native/host/*.cs、native/launcher/*.cs 和 native/adapter/adapter.c。Windows 上安装 Visual Studio Build Tools 与 Windows SDK 后，可用开发机 Python 构建（Python 只用于构建脚本，不在发布包中）：
 
 ```powershell
 python native/build_native.py
@@ -51,8 +51,8 @@ python native/build_selftest.py
 native/dist/WickedNativeHost.exe --self-test
 ```
 
-运行 `python native/build_native_release.py` 在 `releases` 下生成客户端 ZIP。部署到游戏目录使用 `python tools/deploy_native_client.py --game-directory <游戏目录> --release <客户端ZIP>`；开发目录无需放在游戏旁。MinHook v1.3.4 源码与许可证随仓库提供。
+运行 `python native/build_native_release.py --gse-from <已发布原生客户端ZIP>` 在 `releases` 下生成客户端 ZIP。部署到游戏目录使用 `python tools/deploy_native_client.py --game-directory <游戏目录> --release <客户端ZIP>`；开发目录无需放在游戏旁。MinHook v1.3.4 源码与许可证随仓库提供。
 
-原 Python 客户端仍完整保留在 `client/` 中，作为历史实现和协议参考；当前原生客户端不加载这些脚本。服务端继续使用 Python。构建工具使用开发机 Python，用户安装的客户端不需要 Python 或 Frida。
+原 Python 客户端仍完整保留在 `archive/python-client/` 中，作为历史实现和协议参考；当前原生客户端不加载这些脚本。服务端继续使用 Python。构建工具使用开发机 Python，用户安装的客户端不需要 Python 或 Frida。
 
 审计记录：早期 v0.2.1-native 的游戏成功说明误读了旧日志，已撤回到草稿，不应使用。v0.2.2-native 新增显式初始化握手、独立日志、完整 SHA 校验、当前用户共享内存 ACL、进程 job 回收、证书拒绝测试，并使用独立数据库重新验证。

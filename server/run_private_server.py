@@ -73,7 +73,7 @@ def run(config_path):
         api=ThreadingHTTPServer(('127.0.0.1',api_port),GameHandler);api.daemon_threads=True;api.store=store;api.game=game
         start(api);backend_url='http://127.0.0.1:'+str(api.server_address[1])
         os.environ['WICKED_TRANSPORT_LOG']=str(directory/'transport.jsonl')
-        from tools.photon_tcp_probe import Server,Handler
+        from transport import Server,Handler
         transport=Server(('127.0.0.1',transport_port),Handler,game=game,allow_room_probe=True,shared_simulation=True)
         transport_port=transport.server_address[1];start(transport)
     context,fingerprint=tls_context(directory,config.get('public_hostname','localhost'),config.get('tls_certificate'),config.get('tls_private_key'))

@@ -37,9 +37,9 @@ class SaveWireTests(unittest.TestCase):
         self.assertEqual(25,len(finish_response(2,0,123,[3])))
         self.assertEqual(struct.pack('<iBq',2,1,123),backend_result(2,True,123))
 
-    @unittest.skipUnless((Path(__file__).parent/'research/save-bundle-reference.bin').is_file(),'Optional private native save fixture is not distributed')
+    @unittest.skipUnless((Path(__file__).resolve().parents[1]/'research/save-bundle-reference.bin').is_file(),'Optional private native save fixture is not distributed')
     def test_native_reference(self):
-        root=Path(__file__).parent/'research'
+        root=Path(__file__).resolve().parents[1]/'research'
         native=json.loads((root/'save-native-vectors.json').read_text())
         info=cycle_info(bytes.fromhex(native['infoHex']))
         raw=(root/'save-bundle-reference.bin').read_bytes()

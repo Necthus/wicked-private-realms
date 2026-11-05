@@ -36,4 +36,4 @@ GSE 为独立的 LGPL 第三方组件，其许可证和来源说明随包提供�
 
 ## 旧 Python 客户端
 
-原实现保留在 `client/` 中供参考；历史发布包在 v0.1.3 Release。`ModuleNotFoundError: steam_identity` 属于旧 Python 包的导入问题，当前原生包没有该运行依赖。正常升级请使用最新原生完整包，详见 [迁移与回退](NATIVE-MIGRATION.md)。
+原实现保留在 `archive/python-client/` 中供参考；历史发布包在 v0.1.3 Release。`ModuleNotFoundError: steam_identity` 属于旧 Python 包的导入问题，当前原生包没有该运行依赖。正常升级请使用最新原生完整包，详见 [迁移与回退](NATIVE-MIGRATION.md)。

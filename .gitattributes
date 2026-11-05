@@ -2,3 +2,7 @@
 *.cmd text eol=crlf
 plugin/gse/** -text whitespace=cr-at-eol
 *.exe -text
+
+# Historical source is retained without dominating the current language summary.
+archive/** linguist-vendored
+native/vendor/** linguist-vendored

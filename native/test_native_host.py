@@ -15,7 +15,8 @@ import urllib.request
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from test_public_gateway import PublicGatewayTests
+import tests  # Adds the server and archived reference client to the test import path.
+from tests.test_public_gateway import PublicGatewayTests
 from run_private_server import tls_context
 
 

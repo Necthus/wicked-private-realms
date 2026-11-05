@@ -14,7 +14,7 @@
 
 两个包在同一 Release 中分别提供。已有 v0.1.4 服务端无需升级或转换数据库。客户端需要 Windows x64 与 .NET Framework 4.8；从旧 Python 客户端升级时请完整替换客户端目录，见 [迁移与回退](docs/NATIVE-MIGRATION.md)。
 
-原 Python 客户端源码完整保留，作为历史实现、协议参考和故障排查资料；当前发布与维护的客户端使用原生实现。Python 仍用于服务端以及开发、构建和自动测试。
+原 Python 客户端源码完整保留在 `archive/python-client/`，作为历史实现、协议参考和故障排查资料；当前发布与维护的客户端使用原生实现。Python 仍用于服务端以及开发、构建和自动测试。
 
 服务端不需要游戏文件或 Steam。默认只开放 TCP 8443；支持 Docker 或 Python 部署，首次启动自动建立数据库和持久 TLS 证书。世界和角色保存在服主的数据目录；角色按 Steam ID 归属。
 
@@ -43,11 +43,24 @@ v0.1.2 修复进入国度时的 Photon 玩家属性通知路由：17 位 Steam I
 
 ## 源码与开发
 
-* 服务端入口：`run_private_server.py`；配置示例：`deploy/server-config.example.json`。
-* 当前客户端：`client/launcher.cs`（WinForms）、`native/host/*.cs`（网络与进程管理）、`native/adapter/adapter.c`（游戏适配）。
-* 原 Python 客户端：`client/connect_and_launch.py`、`client/launch.py`、`client/*.js` 等，保留作历史实现；原生包不加载这些文件。
+```text
+native/                  当前客户端：C 适配 DLL、C# 宿主和 WinForms 启动器
+server/                  当前仍维护的 Python 服务端
+archive/python-client/   原 Python/Frida 客户端源码归档
+plugin/gse/              第三方许可证、配置模板和校验清单
+tests/                  自动测试与测试依赖
+tools/                  打包、部署及发布工具
+docs/                   安装与开发文档
+```
+
+源码树不提交 EXE、DLL 或压缩包；用户下载请使用 [Release](https://github.com/Necthus/wicked-private-realms/releases/latest)。编译输出统一在忽略的 `native/dist/`，发布包输出在 `releases/`。原 Python 实现保留在 Git 中，可直接浏览和追溯历史。
+
+
+* 服务端入口：`server/run_private_server.py`；配置示例：`deploy/server-config.example.json`。
+* 当前客户端：`native/launcher/launcher.cs`（WinForms）、`native/host/*.cs`（网络与进程管理）、`native/adapter/adapter.c`（C 游戏适配）。
+* 原 Python 客户端：`archive/python-client/`，完整归档保留；原生客户端不加载这些文件。
 * 开发源码与游戏安装目录分开；使用 `tools/deploy_native_client.py` 从 Release ZIP 部署游戏客户端。
-* 随包 GSE：`plugin/gse`，DLL 原始 SHA-256 为 `723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88`。
+* GSE 许可证、配置模板与清单：`plugin/gse`。DLL 仅随 Release 分发，原始 SHA-256 为 `723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88`。
 * 构建和测试：[开发说明](docs/DEVELOPMENT.md)。
 
 仓库和 Release 不包含游戏 EXE、GameAssembly.dll、游戏资源、真实国度/角色存档、SSH 私钥或服主密码。维护中的主存档数据库和运行日志也不在仓库内。

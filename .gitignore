@@ -21,3 +21,12 @@ native/selftest/
 native/integration/
 workspace.local.json
 dev-artifacts/
+
+# Compiled/downloaded artifacts belong in Release, never source control.
+*.exe
+*.dll
+*.obj
+*.lib
+*.exp
+*.pdb
+*.zip

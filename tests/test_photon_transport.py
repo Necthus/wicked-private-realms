@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 from unittest.mock import patch
 from photon_wire import KeyExchange,Reader,frame,parameters,Byte
-from tools.photon_tcp_probe import Server,Handler
+from transport import Server,Handler
 from server import Store
 from game_backend import GameBackend
 from quantum_wire import pack,Bits
@@ -14,7 +14,7 @@ from save_wire import bundle
 class TransportTests(unittest.TestCase):
     def setUp(self):
         # Synthetic connections must not be mixed into live client evidence.
-        self.log_patch=patch('tools.photon_tcp_probe.emit')
+        self.log_patch=patch('transport.emit')
         self.log_patch.start();self.addCleanup(self.log_patch.stop)
     def test_private_auth_and_master_assignment(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -138,9 +138,9 @@ class TransportTests(unittest.TestCase):
             self.assertEqual(bytes([0xf3,3,252]),h.request.replies[-1][7:10])
         finally:server.server_close()
 
-    @unittest.skipUnless((Path(__file__).parent/'research/save-bundle-reference.bin').is_file(),'Optional private native save fixture is not distributed')
+    @unittest.skipUnless((Path(__file__).resolve().parents[1]/'research/save-bundle-reference.bin').is_file(),'Optional private native save fixture is not distributed')
     def test_real_save_bundle_commits_before_success_ack(self):
-        root=Path(__file__).parent/'research'
+        root=Path(__file__).resolve().parents[1]/'research'
         raw=(root/'save-bundle-reference.bin').read_bytes()
         native=json.loads((root/'save-native-vectors.json').read_text())
         decoded=bundle(raw)

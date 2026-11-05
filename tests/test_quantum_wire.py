@@ -6,20 +6,20 @@ from quantum_wire import pack,unpack,start_request,simulation_start,input_frame,
 
 class QuantumWireTests(unittest.TestCase):
     def test_native_client_input_stream(self):
-        v=json.loads((Path(__file__).parent/'research/quantum-input-vectors.json').read_text())['clientInput']
+        v=json.loads((Path(__file__).resolve().parents[1]/'research/quantum-input-vectors.json').read_text())['clientInput']
         result=client_inputs(bytes.fromhex(v['hex']))
         self.assertEqual([{'slot':0,'tick':123,'data':bytes(range(47)),'flags':1}],result)
     def test_input_frames_match_native_encoder(self):
-        vectors=json.loads((Path(__file__).parent/'research/quantum-input-vectors.json').read_text())['vectors']
+        vectors=json.loads((Path(__file__).resolve().parents[1]/'research/quantum-input-vectors.json').read_text())['vectors']
         for v in vectors:
             entries=[None]*4
             if v['active']:entries[0]=(bytes(47),1,bytes([1,0,0,0,0,0,0,0,7,8,9]))
             raw,bits=input_frame(1,entries,server_time=1/60)
             self.assertEqual(v['hex'],raw.hex())
             self.assertEqual(v['bits'],bits)
-    @unittest.skipUnless((Path(__file__).parent/'research/quantum-start-reference.bin').is_file(),'Optional private native session fixture is not distributed')
+    @unittest.skipUnless((Path(__file__).resolve().parents[1]/'research/quantum-start-reference.bin').is_file(),'Optional private native session fixture is not distributed')
     def test_actual_start_request_matches_native_decoder(self):
-        root=Path(__file__).parent/'research'
+        root=Path(__file__).resolve().parents[1]/'research'
         raw=(root/'quantum-start-reference.bin').read_bytes()
         expected=json.loads((root/'quantum-start-decoded.json').read_text())
         response=expected.pop('simulationStart',None)
@@ -31,7 +31,7 @@ class QuantumWireTests(unittest.TestCase):
             self.assertEqual(response['hex'],native.hex())
             self.assertEqual(response['bits'],bits)
     def test_matches_actual_client_vectors(self):
-        vectors=json.loads((Path(__file__).parent/'research/quantum-wire-vectors.json').read_text())['vectors']
+        vectors=json.loads((Path(__file__).resolve().parents[1]/'research/quantum-wire-vectors.json').read_text())['vectors']
         for vector in vectors:
             with self.subTest(name=vector['name'],value=vector['value']):
                 name,value=vector['name'],vector['value']

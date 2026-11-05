@@ -9,7 +9,7 @@ import unittest
 
 class ClientBootstrapTests(unittest.TestCase):
     def test_entry_points_import_in_isolated_python_from_unrelated_directory(self):
-        root=Path(__file__).resolve().parent
+        root=Path(__file__).resolve().parents[1]/'archive/python-client'
         with tempfile.TemporaryDirectory(prefix='wicked isolated directory ') as cwd:
             for filename in ('connect_and_launch.py','install_gse.py','launch.py'):
                 with self.subTest(entry=filename):

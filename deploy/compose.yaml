@@ -1,6 +1,8 @@
 services:
   wicked-private-realms:
-    build: .
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     restart: unless-stopped
     ports:
       - "${REALM_PORT:-8443}:8443"

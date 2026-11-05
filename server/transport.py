@@ -12,7 +12,6 @@ from urllib.parse import parse_qs
 from collections import deque
 import hashlib
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from photon_wire import KeyExchange,Reader,response,frame,Byte,IntArray,event
 from quantum_wire import start_request,simulation_start,unpack,pack,input_frame,client_inputs
 from save_wire import Cycle,cycle_info,chunk,finish_request,finish_response,backend_result
@@ -20,7 +19,7 @@ from quantum_wire import messages
 from room_simulation import ConfirmedRoom
 from shared_saves import SharedSaves
 
-LOG=Path(os.environ.get('WICKED_TRANSPORT_LOG',str(Path(__file__).resolve().parents[1]/'research/photon-tcp-probe.jsonl')))
+LOG=Path(os.environ.get('WICKED_TRANSPORT_LOG',str(Path(__file__).resolve().parent/'logs/transport.jsonl')))
 
 def emit(event,**data):
     if not os.environ.get('WICKED_TRACE_WIRE'):

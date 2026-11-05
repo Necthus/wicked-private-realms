@@ -1,6 +1,6 @@
 # Bundled GSE build
 
-This is the existing GSE DLL from the user's game installation, not the separately
+The Release client bundle includes the existing GSE DLL from the user's game installation, not the separately
 submitted WUS/RUNE-style attachment. It is redistributed byte-for-byte unchanged.
 
 * SHA-256: `723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88`
@@ -21,3 +21,5 @@ a distribution template: personal nickname, Steam ID and absolute Windows save
 path have been removed. The launcher writes each user's supplied SteamID64
 before loading GSE. Existing installations of this exact GSE build keep their
 settings; replacing another API creates a backup first.
+
+The precompiled DLL is distributed only in Release assets, not in this source tree. This directory retains the licenses, settings templates and manifest. Supply a published native client ZIP (or this exact DLL) to `native/build_native_release.py --gse-from` when packaging; the fixed SHA-256 is verified.

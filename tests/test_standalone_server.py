@@ -21,7 +21,7 @@ class StandaloneServerTests(unittest.TestCase):
                 'join_password':'standalone-unit-password','data_directory':'server-data'}))
             env=dict(os.environ,PYTHONUNBUFFERED='1')
             env.pop('REALM_ENROLLMENT_CODE',None);env.pop('REALM_JOIN_PASSWORD',None)
-            process=subprocess.Popen([sys.executable,str(Path(__file__).parent/'run_private_server.py'),'--config',str(config)],
+            process=subprocess.Popen([sys.executable,str(Path(__file__).resolve().parents[1]/'server/run_private_server.py'),'--config',str(config)],
                 stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',env=env)
             output=queue.Queue()
             def collect():

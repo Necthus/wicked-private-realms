@@ -3,12 +3,12 @@ import unittest
 from unittest.mock import patch
 
 from photon_wire import Reader,IntArray,parameters
-from tools.photon_tcp_probe import Server,Handler
+from transport import Server,Handler
 
 
 class ChatRoutingTests(unittest.TestCase):
     def setUp(self):
-        self.logger=patch('tools.photon_tcp_probe.emit');self.logger.start()
+        self.logger=patch('transport.emit');self.logger.start()
         self.server=Server(('127.0.0.1',0),Handler,allow_room_probe=True,shared_simulation=True)
         self.room={'players':{},'timeline':object()}
         class FakeSocket:

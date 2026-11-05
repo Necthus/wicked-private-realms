@@ -4,14 +4,14 @@ from photon_wire import *
 
 class PhotonWireTests(unittest.TestCase):
     def test_native_response_vectors(self):
-        refs=json.loads((Path(__file__).parent/'research/photon-reference-vectors.json').read_text())
+        refs=json.loads((Path(__file__).resolve().parents[1]/'research/photon-reference-vectors.json').read_text())
         for item in refs['responses']:
             params={1:bytes([1,2,3,4])} if item['includeKey'] else {}
             self.assertEqual(item['hex'],response(0,params,internal=True)[2:].hex())
         self.assertEqual(PRIME,int.from_bytes(bytes.fromhex(refs['OakleyPrime768']),'little'))
         self.assertEqual(GENERATOR,refs['Generator'])
     def test_native_cipher_vector(self):
-        v=json.loads((Path(__file__).parent/'research/photon-reference-vectors.json').read_text())['syntheticCrypto']
+        v=json.loads((Path(__file__).resolve().parents[1]/'research/photon-reference-vectors.json').read_text())['syntheticCrypto']
         key=KeyExchange();key.key=hashlib.sha256(bytes.fromhex(v['publicKey'])).digest()
         self.assertEqual(bytes([1,2,3,4,5]),key.decrypt(bytes.fromhex(v['ciphertext'])))
     def test_parameter_roundtrip(self):

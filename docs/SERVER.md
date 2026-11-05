@@ -55,3 +55,18 @@ Windows 使用 `.venv\Scripts\python.exe`。不运行 Docker 时，可用包内 
 `https://服务器:8443/health` 返回 `status=ok` 表示 API 可用。自签证书可在命令行使用 `curl -k` 查看；正式客户端会保存并检查指纹。
 
 当前适配构建为 v29466，国度最多 4 人。游戏模拟由客户端执行，服务端负责输入排序、快照、成员和存档。需要同构建及匹配资源；不承诺其他版本可用，也不承诺所有游戏边界条件均已覆盖。
+
+## 从源码仓库运行
+
+上文命令对应 Release 中解压后的独立服务端包。源码仓库已按用途整理，维护中的 Python 服务端位于 `server/`，并未归档或停止维护。在仓库根目录执行：
+
+```bash
+python -m pip install -r server/requirements.txt
+python server/run_private_server.py --init
+# 修改根目录生成的 server-config.json 中的加入密码
+python server/run_private_server.py --config server-config.json
+```
+
+从源码使用 Docker：进入 `deploy/`，将 `server-config.example.json` 复制为 `server-config.json` 并修改密码，再执行 `docker compose up -d --build`。构建上下文会指向仓库根目录，镜像仅复制 `server/`。运行数据和密码配置不进入镜像。
+
+构建独立部署包使用 `python tools/build_server_release.py`。它在 `releases/server-build/` 生成平铺布局的 Server ZIP，解压后仍可直接使用上文原有部署命令。此次目录整理不修改已发布的 v0.2.3 客户端及 v0.1.4 服务端资产。

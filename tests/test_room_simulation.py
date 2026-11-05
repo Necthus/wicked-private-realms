@@ -15,7 +15,7 @@ class Peer:
 
 class SharedRoomTests(unittest.TestCase):
     def setUp(self):
-        self.request=json.loads((Path(__file__).parent/'research/quantum-start-decoded.json').read_text())
+        self.request=json.loads((Path(__file__).resolve().parents[1]/'research/quantum-start-decoded.json').read_text())
         self.request['runtimeConfig']=bytes(self.request['runtimeConfig'])
         self.now=10.0;self.room=ConfirmedRoom(self.request,clock=lambda:self.now)
         self.a=Peer(1);self.b=Peer(2)
