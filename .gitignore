@@ -19,3 +19,5 @@ native/build/
 native/dist/
 native/selftest/
 native/integration/
+workspace.local.json
+dev-artifacts/

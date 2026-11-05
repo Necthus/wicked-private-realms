@@ -1,15 +1,19 @@
-原生客户端候选 v0.2.2-native：客户端已迁移到编译后的 EXE/DLL，不再携带 Python、Frida、JavaScript 或 runtime 文件夹。服务端保持现有 v0.1.4，无需转换账号或存档。
+# v0.2.3 — 原生客户端正式版
 
-包含 WickedLauncher.exe（WinForms x64）、WickedNativeHost.exe（.NET Framework 4.8）和 WickedAdapter.dll（MSVC x64 /MT + MinHook），以及原有已核对 GSE 与全部设置模板。约 2.5 MiB。
+客户端已全面迁移到编译后的 WinForms 启动器、网络宿主 EXE 与游戏适配 DLL。完整客户端约 2.5 MiB，不再携带 Python、Frida、JavaScript 或 runtime 目录。原 Python 客户端源码仍完整保留，作为历史实现与协议参考；服务端继续使用 Python。
 
-已验证：DLL 自测 0x1F、编译主机 15 项自测、原生主机对 Python 网关的密码/证书变更拒绝、HTTP 和 2 MiB 双向转发测试。实际游戏由主机挂起启动，通过 Windows 加载器注入，并显式调用初始化导出；握手确认后才恢复主线程。随后独立 DLL 日志确认 17 个适配钩子生效、私服登录、玩家第 120 帧加入及持续确认输入。
+本次 Release 分别提供：
 
-在生产数据库的本地副本上，通过游戏原有入场/退出流程完成两次定时保存、返回菜单最终保存、玩家移除；关闭主机自动回收游戏。开发工具仅用于调度正常游戏流程和读状态，不进入客户端包。正式阿里云国度未用于这轮游戏测试。
+- `Wicked-Private-Realms-Client-Native-v29466-v0.2.3.zip`：玩家下载，解压到游戏 EXE 旁，运行启动器，填写服务器地址、加入密码与 Steam ID。
+- `Wicked-Private-Realms-Server-v0.1.4.zip`：服主下载，配置加入密码、持久数据目录与 TLS 端口；与原 v0.1.4 包字节一致。已有服务器无需升级或转换存档。
+- `SHA256SUMS.txt`：上述两个包的 SHA-256。
 
-请独立解压本包为游戏 EXE 旁的 wicked-client，避免与旧 runtime 混合。填写服务器、密码、Steam ID。仍需完整测试手动移动、战斗、双机同步、聊天、地图切换、重连及长期运行；保留 v0.1.3 客户端作回退。
+维护者已对当前原生版本进行游戏内手动测试并确认正常。客户端三个二进制与已测 v0.2.2-native 相同，本次更新文档、版本元数据与正式发布状态。此前通过 DLL 自检 0x1F、宿主 15 项自检、14 项网关/原生网络测试，以及独立数据库的游戏入场、定时保存、返回菜单保存和玩家移除验证。这些验证不代表所有硬件、游戏流程及长期场景均已覆盖。
 
-首次 TLS 证书采用指纹首次信任，后续固定；Steam ID 只是私服索引。没有更改 Windows 安全设置。系统可能为新 EXE 弹出防火墙提示，本地只监听 127.0.0.1，不要求开放客户端公网入站。
+源码、构建和游戏部署目录分开，新增原生启动器构建与 Release 部署工具。原 Python 实现保留；游戏目录仅需 Release 文件与运行时生成的设置、信任记录和日志。
 
-早期 v0.2.1-native 的游戏成功说明误读旧日志，已撤回到草稿；请勿使用该旧包。本候选重新实现了初始化握手、独立日志、完整 SHA 校验、共享内存 ACL、job 进程回收及证书拒绝测试。
+从旧 Python 包升级：关闭游戏与启动器，将旧 `wicked-client` 移走备份，再完整解压新包；不要合并旧 runtime。可自行迁回 `data/launcher-settings.json` 和 `data/server-trust`。需要 Windows x64 与 .NET Framework 4.8，游戏构建限定 v29466。GSE DLL 与全部设置模板随客户端包提供。
 
-使用与回退：https://github.com/Necthus/wicked-private-realms/blob/main/docs/NATIVE-MIGRATION.md
+这是非 Pre-release 的正式版本，并设为 GitHub Latest；此前版本全标记为预发布，导致仓库主页没有正常显示正式最新版。
+
+教程：[客户端安装](https://github.com/Necthus/wicked-private-realms/blob/main/docs/CLIENT.md) · [服务端部署](https://github.com/Necthus/wicked-private-realms/blob/main/docs/SERVER.md) · [迁移与回退](https://github.com/Necthus/wicked-private-realms/blob/main/docs/NATIVE-MIGRATION.md)

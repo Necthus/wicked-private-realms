@@ -10,6 +10,7 @@ jobs:
           python-version: '3.12'
       - run: python native/build_native.py
       - run: python native/build_host.py
+      - run: python native/build_launcher.py
       - run: python native/build_selftest.py
       - run: native/dist/WickedNativeHost.exe --self-test
       - run: python -m pip install -r requirements-dev.txt

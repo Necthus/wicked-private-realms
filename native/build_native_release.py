@@ -1,27 +1,45 @@
 """Package only compiled client binaries and verified third-party GSE files."""
 from pathlib import Path
+import argparse
 import hashlib
 import json
 import zipfile
 
 ROOT=Path(__file__).resolve().parent.parent
-VERSION='v0.2.2-native'
+VERSION='v0.2.3'
 
 
 def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--binaries-from',type=Path,help='Reuse verified binaries from a tested native release ZIP')
+    args=parser.parse_args()
     native=ROOT/'native';output=ROOT/'releases'/('public-'+VERSION);output.mkdir(parents=True,exist_ok=True)
     entries={name:ROOT/name for name in ('WickedLauncher.exe','WickedLauncher.exe.config','Start-Launcher.cmd','Start-Test.cmd','Check-Connection.cmd','LICENSE','THIRD_PARTY.md')}
     entries.update({name:native/'dist'/name for name in ('WickedNativeHost.exe','WickedAdapter.dll')})
     entries.update({p.relative_to(ROOT).as_posix():p for p in (ROOT/'plugin/gse').rglob('*') if p.is_file()})
     entries['README.md']=ROOT/'docs/NATIVE-MIGRATION.md'
     entries['native/MinHook-LICENSE.txt']=native/'vendor/minhook/LICENSE.txt'
+    binary_names=('WickedLauncher.exe','WickedNativeHost.exe','WickedAdapter.dll')
+    binaries={}
+    if args.binaries_from:
+        with zipfile.ZipFile(args.binaries_from) as tested:
+            metadata=json.loads(tested.read('wicked-client/native/BUILD-METADATA.json'))
+            if metadata.get('mode')!='native' or metadata.get('game_build')!='29466':raise ValueError('Unsupported binary source')
+            for name in binary_names:
+                raw=tested.read('wicked-client/'+name)
+                if hashlib.sha256(raw).hexdigest()!=metadata['files'][name]:raise ValueError('Tested binary hash mismatch: '+name)
+                binaries[name]=raw
+    else:
+        binaries={name:entries[name].read_bytes() for name in binary_names}
     path=output/('Wicked-Private-Realms-Client-Native-v29466-'+VERSION+'.zip')
     with zipfile.ZipFile(path,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
-        for name,file in sorted(entries.items()):archive.write(file,'wicked-client/'+name)
+        for name,file in sorted(entries.items()):
+            if name in binaries:archive.writestr('wicked-client/'+name,binaries[name])
+            else:archive.write(file,'wicked-client/'+name)
         archive.writestr('wicked-client/data/launcher-settings.json',json.dumps({'server':'','steam_id':'','steam_mode':'gse'},indent=2))
         archive.writestr('wicked-client/native/BUILD-METADATA.json',json.dumps({'mode':'native','version':VERSION,
             'python_runtime_included':False,'frida_runtime_included':False,'game_build':'29466',
-            'files':{name:hashlib.sha256(entries[name].read_bytes()).hexdigest() for name in ('WickedLauncher.exe','WickedNativeHost.exe','WickedAdapter.dll')}},indent=2))
+            'files':{name:hashlib.sha256(raw).hexdigest() for name,raw in binaries.items()}},indent=2))
     with zipfile.ZipFile(path) as archive:
         if archive.testzip() is not None:raise ValueError('Invalid ZIP')
         for name in archive.namelist():

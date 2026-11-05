@@ -4,17 +4,17 @@
 
 ## 下载与教程
 
-从 [Releases](https://github.com/Necthus/wicked-private-realms/releases) 下载。当前服务端为 v0.1.4，客户端继续使用 v0.1.3（无需升级）：
+当前推荐版本为 [v0.2.3 正式版（Latest）](https://github.com/Necthus/wicked-private-realms/releases/latest)。客户端已全面迁移到编译后的 WinForms 启动器、原生网络宿主和注入 DLL，下载约 2.5 MiB，不再携带 Python、Frida、JavaScript 或 runtime 目录。服务端继续使用 v0.1.4 Python 实现。
 
 | 文件 | 用途 | 教程 |
 |---|---|---|
-| `Wicked-Private-Realms-Server-v0.1.4.zip` | 自建服务器；配置加入密码后运行 | [服务端部署](docs/SERVER.md) |
-| `Wicked-Private-Realms-Client-v29466-v0.1.3.zip` | 玩家完整客户端，含启动器、Python、Frida 和 GSE | [客户端安装](docs/CLIENT.md) |
-| `Wicked-Private-Realms-Client-Update-v29466-v0.1.3.zip` | 已有完整客户端的覆盖更新，不含运行环境 | [客户端安装](docs/CLIENT.md) |
-| `Wicked-Private-Realms-Client-Import-Fix-v0.1.3.zip` | 修复已有客户端的便携 Python 导入错误，只含启动脚本 | [客户端安装](docs/CLIENT.md) |
-| `SHA256SUMS.txt` | 校验下载内容 | — |
+| `Wicked-Private-Realms-Client-Native-v29466-v0.2.3.zip` | 玩家完整原生客户端，含启动器、宿主、适配 DLL 和 GSE | [客户端安装](docs/CLIENT.md) |
+| `Wicked-Private-Realms-Server-v0.1.4.zip` | 独立服务端；配置加入密码后运行 | [服务端部署](docs/SERVER.md) |
+| `SHA256SUMS.txt` | 校验两个下载包 | — |
 
-**原生客户端候选 v0.2.2-native**：[下载无 Python/Frida 的编译版](https://github.com/Necthus/wicked-private-realms/releases/tag/v0.2.2-native)。约 2.5 MiB，包含启动器、编译主机、注入 DLL 与 GSE；需要 .NET Framework 4.8。已完成本地独立数据库入场、保存和返回菜单回归，仍待完整双机游戏测试。见 [原生迁移与回退](docs/NATIVE-MIGRATION.md)。稳定客户端继续使用 v0.1.3；早期原生候选已撤回。
+两个包在同一 Release 中分别提供。已有 v0.1.4 服务端无需升级或转换数据库。客户端需要 Windows x64 与 .NET Framework 4.8；从旧 Python 客户端升级时请完整替换客户端目录，见 [迁移与回退](docs/NATIVE-MIGRATION.md)。
+
+原 Python 客户端源码完整保留，作为历史实现、协议参考和故障排查资料；当前发布与维护的客户端使用原生实现。Python 仍用于服务端以及开发、构建和自动测试。
 
 服务端不需要游戏文件或 Steam。默认只开放 TCP 8443；支持 Docker 或 Python 部署，首次启动自动建立数据库和持久 TLS 证书。世界和角色保存在服主的数据目录；角色按 Steam ID 归属。
 
@@ -37,14 +37,16 @@ v0.1.2 修复进入国度时的 Photon 玩家属性通知路由：17 位 Steam I
 
 游戏模拟由客户端执行；服务端排序确认输入、协调快照与存档。国度最多 4 人。单成员的远端国度保持在线共享；本地离线国度仍由游戏原流程处理。游戏分辨率、全屏和画质设置不被启动器覆盖。
 
-既有双客户端已实际验证同国度互动和保存流程。当前新增的 TLS 路径覆盖密码拒绝、证书固定、二进制转发及独立服务端启动测试；跨公网登录已验证。完整双机游玩仍应按当前 Release 重新回归，不应把 API 成功当作所有游戏流程已验证。
+原 Python 实现已完成双客户端同国度互动和保存验证。原生客户端通过初始化、独立数据库入场与保存回归、15 项宿主自检和 14 项网关/原生网络测试；维护者已在当前游戏环境手动测试并确认正常。此结论不代表所有硬件、游戏流程、正版环境或长期运行场景均已覆盖。
 
 适配器针对记录的 v29466 GameAssembly.dll 精确哈希，其他构建会拒绝注入。不同资源或模组也可能造成确定性模拟分歧。当前 Steam ID 是私服账号索引，不进行真实 Steam 所有权验证。客户端首次连接使用证书指纹首次信任，之后固定证书；详见部署教程。
 
 ## 源码与开发
 
 * 服务端入口：`run_private_server.py`；配置示例：`deploy/server-config.example.json`。
-* 客户端入口：`client/launcher.cs` / `client/connect_and_launch.py`。
+* 当前客户端：`client/launcher.cs`（WinForms）、`native/host/*.cs`（网络与进程管理）、`native/adapter/adapter.c`（游戏适配）。
+* 原 Python 客户端：`client/connect_and_launch.py`、`client/launch.py`、`client/*.js` 等，保留作历史实现；原生包不加载这些文件。
+* 开发源码与游戏安装目录分开；使用 `tools/deploy_native_client.py` 从 Release ZIP 部署游戏客户端。
 * 随包 GSE：`plugin/gse`，DLL 原始 SHA-256 为 `723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88`。
 * 构建和测试：[开发说明](docs/DEVELOPMENT.md)。
 

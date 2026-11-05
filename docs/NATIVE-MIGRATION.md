@@ -1,4 +1,4 @@
-# 原生客户端 v0.2.2-native（完整游戏测试候选）
+# 原生客户端 v0.2.3（当前正式版）
 
 客户端已改为编译产物，不携带 Python、Frida、JavaScript 或 runtime 文件夹。服务端仍使用现有 v0.1.4 Python 实现，本次不要求迁移世界数据或升级服务器。
 
@@ -33,7 +33,7 @@ Windows 可能为新 EXE 弹出防火墙提示。客户端只监听 127.0.0.1，
 
 已完成：15 项编译主机自测、DLL 自测 0x1F、原生主机对 Python 网关的密码/证书/HTTP/2 MiB 双向流测试、实际游戏登录与主菜单。使用备份数据库的本地测试服务，已通过游戏原有流程进入在线场景，确认玩家第 120 帧加入、持续确认帧、两次定时保存、返回菜单时最终保存和玩家移除。关闭主机后本次游戏进程被自动回收。测试后恢复本地存档与 GSE 设置；生产国度未参与此次游戏测试。
 
-开发测试用 Python/Frida 读取状态并在主更新线程调用游戏原有入场/退出流程，未用 Frida 替代原生适配功能；这些开发工具不进入客户端包。实际手动移动、战斗、聊天、双机同步、地图切换、重连和长期运行仍需完整回归。因此本包是候选版本，v0.1.3 Python 客户端继续作为回退。
+开发测试用 Python/Frida 读取状态并在主更新线程调用游戏原有入场/退出流程，未用 Frida 替代原生适配功能；这些开发工具不进入客户端包。随后维护者在当前游戏环境手动测试并确认正常，现发布为正式版。完整的所有流程、硬件与长期运行覆盖并未据此承诺。v0.2.3 沿用该测试版本的三个 EXE/DLL 二进制，仅更新发布说明与版本元数据。
 
 ## 回退
 
@@ -46,10 +46,13 @@ Windows 可能为新 EXE 弹出防火墙提示。客户端只监听 127.0.0.1，
 ```powershell
 python native/build_native.py
 python native/build_host.py
+python native/build_launcher.py
 python native/build_selftest.py
 native/dist/WickedNativeHost.exe --self-test
 ```
 
-将编译主机和 DLL 放入客户端目录，使用 client/launcher.cs 构建 x64 WinForms 启动器，再运行 native/build_native_release.py。MinHook v1.3.4 源码与许可证随仓库提供。
+运行 `python native/build_native_release.py` 在 `releases` 下生成客户端 ZIP。部署到游戏目录使用 `python tools/deploy_native_client.py --game-directory <游戏目录> --release <客户端ZIP>`；开发目录无需放在游戏旁。MinHook v1.3.4 源码与许可证随仓库提供。
+
+原 Python 客户端仍完整保留在 `client/` 中，作为历史实现和协议参考；当前原生客户端不加载这些脚本。服务端继续使用 Python。构建工具使用开发机 Python，用户安装的客户端不需要 Python 或 Frida。
 
 审计记录：早期 v0.2.1-native 的游戏成功说明误读了旧日志，已撤回到草稿，不应使用。v0.2.2-native 新增显式初始化握手、独立日志、完整 SHA 校验、当前用户共享内存 ACL、进程 job 回收、证书拒绝测试，并使用独立数据库重新验证。
