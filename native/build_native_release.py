@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import zipfile
 
@@ -16,13 +17,20 @@ def main():
     parser.add_argument('--binaries-from', type=Path, help='Reuse verified EXE/DLL files from a tested native Release ZIP')
     parser.add_argument('--gse-from', type=Path, help='Native Release ZIP containing the approved GSE DLL (or an approved DLL file)')
     parser.add_argument('--output', type=Path, default=ROOT / 'releases' / ('public-' + VERSION))
+    parser.add_argument('--version', default=VERSION, help='Package version, e.g. v0.2.6 or v0.2.6-rc.1')
+    parser.add_argument('--revision', help='Source commit SHA recorded in build metadata')
     args = parser.parse_args()
+    if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?', args.version):
+        parser.error('Invalid package version; use vMAJOR.MINOR.PATCH with an optional prerelease suffix')
+    if args.revision is not None and not re.fullmatch(r'[0-9a-f]{40}', args.revision):
+        parser.error('--revision must be a full lowercase commit SHA')
     entries = {name: ROOT / name for name in ('LICENSE', 'THIRD_PARTY.md')}
     entries.update({name: ROOT / 'native/launcher' / name for name in
                     ('WickedLauncher.exe.config', 'Start-Launcher.cmd', 'Start-Test.cmd', 'Check-Connection.cmd')})
     entries.update({p.relative_to(ROOT).as_posix(): p for p in (ROOT / 'plugin/gse').rglob('*')
                     if p.is_file() and p.name != 'steam_api64.dll'})
     entries['README.md'] = ROOT / 'docs/NATIVE-MIGRATION.md'
+    entries['CLIENT.md'] = ROOT / 'docs/CLIENT.md'
     entries['PROLOGUE-RESTORE.md'] = ROOT / 'docs/PROLOGUE-RESTORE.md'
     entries['LOCAL-REALMS.md'] = ROOT / 'docs/LOCAL-REALMS.md'
     entries['native/MinHook-LICENSE.txt'] = ROOT / 'native/vendor/minhook/LICENSE.txt'
@@ -54,7 +62,7 @@ def main():
     payload['plugin/gse/steam_api64.dll'] = gse
     payload['data/launcher-settings.json'] = json.dumps({'server': '', 'steam_id': '', 'steam_mode': 'gse'}, indent=2).encode()
     payload['native/BUILD-METADATA.json'] = json.dumps({
-        'mode': 'native', 'version': VERSION, 'python_runtime_included': False,
+        'mode': 'native', 'version': args.version, 'source_revision': args.revision, 'python_runtime_included': False,
         'frida_runtime_included': False, 'game_build': '29466',
         'files': {name: hashlib.sha256(raw).hexdigest() for name, raw in binaries.items()},
     }, indent=2).encode()
@@ -63,7 +71,7 @@ def main():
                 or name.endswith(('.py', '.js', '.sqlite3', '.key', '.pem'))):
             raise ValueError('Unexpected source or private state: ' + name)
     args.output.mkdir(parents=True, exist_ok=True)
-    path = args.output / ('Wicked-Private-Realms-Client-Native-v29466-' + VERSION + '.zip')
+    path = args.output / ('Wicked-Private-Realms-Client-Native-v29466-' + args.version + '.zip')
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for name, raw in sorted(payload.items()):
             archive.writestr('wicked-client/' + name, raw)

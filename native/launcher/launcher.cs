@@ -109,7 +109,7 @@ internal sealed class RealmLauncher : Form {
             if(Value(saved,"server")!="")server.Text=Value(saved,"server");
             if(Value(saved,"steam_mode")=="native")useGse.Checked=false;
             name.Text=Value(saved,"steam_id");
-            string game=Directory.GetParent(root.TrimEnd(Path.DirectorySeparatorChar)).FullName;
+            string game=Wicked.Native.GameInstallation.Resolve(root,null);
             string config=Path.Combine(game,"NoRestForTheWicked_Data/Plugins/x86_64/steam_settings/configs.user.ini");
             if(File.Exists(config)) {
                 Match identity=Regex.Match(File.ReadAllText(config,Encoding.UTF8),@"(?m)^\s*account_steamid\s*=\s*([0-9]{17})\s*$");
@@ -147,7 +147,7 @@ internal sealed class RealmLauncher : Form {
             cancelPath=Path.Combine(root,"data/launcher-cancel-"+Guid.NewGuid().ToString("N"));
             var info=new ProcessStartInfo(useNative?nativeHost:python);
             info.Arguments=useNative?("--cancel-file \""+cancelPath+"\""+(checkOnly?" --check":"")):("\""+Path.Combine(root,"client/connect_and_launch.py")+"\" --login-stdin --cancel-file \""+cancelPath+"\""+(checkOnly?" --check":""));
-            info.WorkingDirectory=Directory.GetParent(root.TrimEnd(Path.DirectorySeparatorChar)).FullName;
+            info.WorkingDirectory=Wicked.Native.GameInstallation.Resolve(root,null);
             info.UseShellExecute=false; info.CreateNoWindow=true;
             info.RedirectStandardInput=info.RedirectStandardOutput=info.RedirectStandardError=true;
             info.StandardOutputEncoding=info.StandardErrorEncoding=Encoding.UTF8;

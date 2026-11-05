@@ -15,6 +15,7 @@ def main():
         '/reference:System.Web.Extensions.dll', '/reference:System.Core.dll',
         '/win32manifest:' + str(ROOT / 'native/launcher/launcher.manifest'),
         '/out:' + str(ROOT / 'native/dist/WickedLauncher.exe'), str(ROOT / 'native/launcher/launcher.cs'),
+        *map(str, sorted((ROOT / 'native/shared').glob('*.cs'))),
     ], cwd=ROOT, check=True)
     print('Built ' + str(ROOT / 'native/dist/WickedLauncher.exe'))
 

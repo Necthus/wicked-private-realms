@@ -1,6 +1,6 @@
 # 客户端安装
 
-下载 [最新正式 Release](https://github.com/Necthus/wicked-private-realms/releases/latest) 中的 **Client-Native ZIP**。把整个 `wicked-client` 文件夹放入游戏目录，与 `NoRestForTheWicked.exe` 并列。更新时关闭游戏和启动器；从旧 Python 版升级请先移走整个旧目录，再解压原生包，避免残留旧运行环境。
+下载 [本仓库的 Release](https://github.com/Necthus/wicked-private-realms/releases) 中的 **Client-Native ZIP**，或从 [Actions 构建](https://github.com/Necthus/wicked-private-realms/actions/workflows/ci.yml) 的 `native-client` Artifact 获取最新提交的包（先解压 Artifact，再解压其中的客户端 ZIP）。把整个 `wicked-client` 文件夹放入游戏目录，与 `NoRestForTheWicked.exe` 并列。更新时关闭游戏和启动器；从旧 Python 版升级请先移走整个旧目录，再解压原生包，避免残留旧运行环境。
 
 1. 运行 `wicked-client/WickedLauncher.exe`。
 2. 填写服主提供的 **服务器地址、加入密码、自己的 17 位 Steam ID**。不带端口时使用 TCP 8443，也可填 `IP:端口`。
@@ -9,6 +9,14 @@
 5. 选择或创建角色，再进入共享国度。正常结束先保存返回菜单，再退出游戏；游戏运行时保持启动器打开。
 
 **不需要 Python、Frida、SSH 私钥或额外的服务器连接包。** 当前客户端已全面迁移到编译后的 EXE/DLL，需要 Windows x64 和 .NET Framework 4.8。旧 Python 实现保留在源码仓库，当前客户端包不包含它。
+
+## 启动目录与 DLL 校验错误
+
+启动器和原生宿主从自身目录向上查找最近的 `NoRestForTheWicked.exe`，兼容放在游戏根目录、标准 `wicked-client` 目录以及游戏目录内多套一层的解压目录。建议仍按上面的标准目录安装；放在游戏目录之外时，应移动整个客户端文件夹。直接调用宿主时，显式传入的 `--game-directory` 优先，路径错误不会自动改用其他目录。
+
+`Game executable not found` 表示没有找到游戏 EXE；`GameAssembly.dll not found` 表示所选游戏目录缺少 DLL。这两类错误不代表版本不兼容。
+
+`Unsupported GameAssembly.dll` 表示 DLL 的完整 SHA-256 与已验证构建不一致。错误会列出实际路径、预期哈希和实际哈希。同为 v29466 的版本标签不足以证明二进制一致；可在正常机器和故障机器分别运行 `Get-FileHash '游戏目录\GameAssembly.dll' -Algorithm SHA256` 进行比较。当前适配器使用固定函数地址偏移，不能通过删除哈希校验或直接加入未知哈希来证明兼容性，需先验证不同 DLL 的函数布局。
 
 ## Steam ID 与 GSE
 

@@ -1,11 +1,17 @@
 name: Native client build
-on: [push, pull_request]
+on:
+  workflow_call:
+permissions:
+  contents: read
 jobs:
   native:
     runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PACKAGE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.2.5-ci.{0}.{1}', github.run_number, github.run_attempt) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
       - run: python native/build_native.py
@@ -15,3 +21,13 @@ jobs:
       - run: native/dist/WickedNativeHost.exe --self-test
       - run: python -m pip install -r tests/requirements.txt
       - run: python native/test_native_host.py
+      - name: Fetch pinned upstream GSE bundle
+        run: python tools/fetch_ci_gse.py --output native/build/upstream-client.zip
+      - name: Package the compiled client
+        run: python native/build_native_release.py --gse-from native/build/upstream-client.zip --version "$env:PACKAGE_VERSION" --revision "$env:GITHUB_SHA" --output releases/client
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: native-client
+          path: releases/client/*.zip
+          if-no-files-found: error
+          retention-days: 14
