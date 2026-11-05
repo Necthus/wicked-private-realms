@@ -153,7 +153,7 @@ class Handler(socketserver.BaseRequestHandler):
                     emit('room-join-rejected-simulation-pending');return True
                 with self.server.room_lock:
                     state=self.server.rooms.setdefault(room,{'players':{},'next_actor':1,'properties':params.get(248,{})})
-                    if len(state['players'])>=4:
+                    if len(state['players'])>=self.server.max_players:
                         self.send_packet(response(op,return_code=32765,debug='Private room is full'));return True
                     self.actor=state['next_actor'];state['next_actor']+=1
                     self.player_properties=dict(params.get(249,{}) or {})
@@ -161,7 +161,7 @@ class Handler(socketserver.BaseRequestHandler):
                     if self.identity.get('name'):
                         self.player_properties[Byte(255)]=self.identity['name']
                     state['players'][self.actor]=self;self.room=state
-                    props=dict(state['properties']);props.update({Byte(255):Byte(4),Byte(253):True,Byte(254):False,Byte(248):min(state['players'])})
+                    props=dict(state['properties']);props.update({Byte(255):Byte(self.server.max_players),Byte(253):True,Byte(254):False,Byte(248):min(state['players'])})
                     actors={n:peer.player_properties for n,peer in state['players'].items()}
                     self.send_packet(response(op,{254:self.actor,249:actors,248:props,252:IntArray(tuple(actors))}))
                     joined=event(255,{254:self.actor,252:IntArray(tuple(actors)),249:self.player_properties})
@@ -309,7 +309,7 @@ class Handler(socketserver.BaseRequestHandler):
                 raise ValueError('Unsupported shared-session identity or protocol')
             with self.server.room_lock:
                 if 'timeline' not in self.room:
-                    self.room['timeline']=ConfirmedRoom(request,log=emit)
+                    self.room['timeline']=ConfirmedRoom(request,log=emit,capacity=self.server.max_players,first_slot=self.server.first_slot)
                     self.room['shared_saves']=SharedSaves(self.server.game,self.identity['realm'],self.room['timeline'],log=emit)
                 timeline=self.room['timeline']
             timeline.start(self,request)
@@ -413,8 +413,11 @@ class Handler(socketserver.BaseRequestHandler):
 class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address=True
     daemon_threads=True
-    def __init__(self,*args,game=None,allow_room_probe=False,shared_simulation=False,**kwargs):
+    def __init__(self,*args,game=None,allow_room_probe=False,shared_simulation=False,max_players=4,first_slot=0,**kwargs):
+        if type(max_players) is not int or max_players not in (4,5):raise ValueError('Unsupported player capacity')
+        if type(first_slot) is not int or not 0<=first_slot<max_players:raise ValueError('Invalid first player slot')
         super().__init__(*args,**kwargs)
+        self.max_players=max_players;self.first_slot=first_slot
         self.game=game
         self.tickets={}
         self.rooms={}

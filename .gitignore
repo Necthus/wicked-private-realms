@@ -30,3 +30,5 @@ dev-artifacts/
 *.exp
 *.pdb
 *.zip
+native/dist-five/
+native/build-five/

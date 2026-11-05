@@ -31,11 +31,15 @@ class Player:
 
 
 class ConfirmedRoom:
-    def __init__(self,request,clock=time.monotonic,log=lambda *a,**kw:None):
+    def __init__(self,request,clock=time.monotonic,log=lambda *a,**kw:None,capacity=4,first_slot=0):
+        if type(capacity) is not int or capacity not in (4,5):raise ValueError('Unsupported player capacity')
+        if type(first_slot) is not int or not 0<=first_slot<capacity:raise ValueError('Invalid first player slot')
+        self.capacity=capacity
+        self.slot_order=list(range(first_slot,capacity))+list(range(first_slot))
         if request['initialTick']!=0:raise ValueError('Fresh room requires a fresh session request')
         self.request=copy.deepcopy(request)
         self.config=self.request['config']
-        if self.config['PlayerCount']!=4 or self.config['InputFixedSize']!=47 or self.config['UpdateFPS']!=60:
+        if self.config['PlayerCount']!=capacity or self.config['InputFixedSize']!=47 or self.config['UpdateFPS']!=60:
             raise ValueError('Unsupported shared simulation configuration')
         self.config['InputDeltaCompression']=False
         self.tick=self.config['RollbackWindow']-1
@@ -58,8 +62,8 @@ class ConfirmedRoom:
             if any(p.peer.identity['account']==peer.identity['account'] for p in self.players.values()):
                 raise ValueError('This account is already connected to the realm')
             taken={p.index for p in self.players.values()}
-            index=next((i for i in range(4) if i not in taken),None)
-            if index is None:raise ValueError('Four simulation slots are occupied')
+            index=next((i for i in self.slot_order if i not in taken),None)
+            if index is None:raise ValueError('All simulation slots are occupied')
             existing=[p for p in self.players.values() if p.active and p.ready]
             p=Player(peer.actor,index,peer,last=bytes(self.config['InputFixedSize']))
             self.players[p.actor]=p
@@ -85,7 +89,7 @@ class ConfirmedRoom:
 
     def _emit_frame(self,joins=None,removals=None):
         joins=joins or {};removals=removals or set();tick=self.tick+1
-        entries=[None]*4
+        entries=[None]*self.capacity
         for p in sorted(self.players.values(),key=lambda x:x.index):
             if p.actor in removals:
                 p.active=False;p.inputs.clear();p.commands.clear()

@@ -68,7 +68,9 @@ namespace Wicked.Native {
             }
             Fixed(buffer,32,32,id,false);Fixed(buffer,64,128,"http://127.0.0.1:18770/game",false);Fixed(buffer,192,4096,token,false);
             // Reserved v1 flags remain zero; the game decides whether to play the prologue.
-            Fixed(buffer,4288,2048,Path.Combine(root,"research","native-adapter.jsonl"),true);return buffer;
+            Fixed(buffer,4288,2048,Path.Combine(root,"research","native-adapter.jsonl"),true);
+            if(Environment.GetEnvironmentVariable("WICKED_EXPERIMENTAL_PLAYERS")=="5")BitConverter.GetBytes((uint)2).CopyTo(buffer,6336);
+            return buffer;
         }
         static void Fixed(byte[] buffer,int offset,int length,string text,bool unicode){byte[] encoded=(unicode?Encoding.Unicode:Encoding.UTF8).GetBytes(text+'\0');if(encoded.Length>length)throw new Exception("Native session field exceeds its bound");encoded.CopyTo(buffer,offset);}
         void ConfigureJob(){

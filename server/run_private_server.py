@@ -74,7 +74,8 @@ def run(config_path):
         start(api);backend_url='http://127.0.0.1:'+str(api.server_address[1])
         os.environ['WICKED_TRANSPORT_LOG']=str(directory/'transport.jsonl')
         from transport import Server,Handler
-        transport=Server(('127.0.0.1',transport_port),Handler,game=game,allow_room_probe=True,shared_simulation=True)
+        transport=Server(('127.0.0.1',transport_port),Handler,game=game,allow_room_probe=True,shared_simulation=True,
+                         max_players=config.get('max_players',4),first_slot=config.get('experimental_first_slot',0))
         transport_port=transport.server_address[1];start(transport)
     context,fingerprint=tls_context(directory,config.get('public_hostname','localhost'),config.get('tls_certificate'),config.get('tls_private_key'))
     port=int(config.get('port',8443))

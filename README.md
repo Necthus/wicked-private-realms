@@ -1,5 +1,7 @@
 # Wicked Private Realms
 
+> 当前分支为 `experimental/five-player`：五人实验实现，尚未完成五台真实客户端验收。普通正式版见 `main` 与 [Latest Release](https://github.com/Necthus/wicked-private-realms/releases/latest)。实验构建与已验证范围见 [五人实验说明](docs/FIVE-PLAYER-FEASIBILITY.md)。
+
 《恶意不息 / No Rest for the Wicked》v29466 的实验性私有国度服务端与 Windows 启动器。服务端和客户端分别下载、分别配置。客户端使用服务器地址、加入密码、SteamID64 直接通过 TLS 连接，不使用 SSH 私钥。
 
 ## 下载与教程

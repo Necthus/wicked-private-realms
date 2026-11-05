@@ -24,16 +24,20 @@ def vc_environment():
     return env
 
 
-def build():
-    output=ROOT/'dist';output.mkdir(exist_ok=True)
-    obj=ROOT/'build';obj.mkdir(exist_ok=True)
+def build(experimental_five=False):
+    output=ROOT/('dist-five' if experimental_five else 'dist');output.mkdir(exist_ok=True)
+    obj=ROOT/('build-five' if experimental_five else 'build');obj.mkdir(exist_ok=True)
     sources=[ROOT/'adapter/adapter.c']+[ROOT/'vendor/minhook/src'/name for name in ('buffer.c','hook.c','trampoline.c','hde/hde64.c')]
     command=['cl.exe','/nologo','/O2','/MT','/W3','/wd4152','/std:c11','/DUNICODE','/D_UNICODE','/LD',
         '/I'+str(ROOT/'vendor/minhook/include'),'/Fo'+str(obj)+os.sep,*map(str,sources),
         '/link','/INCREMENTAL:NO','/OUT:'+str(output/'WickedAdapter.dll'),'/IMPLIB:'+str(obj/'WickedAdapter.lib'),'ws2_32.lib']
     env=vc_environment();command[0]=shutil.which('cl.exe',path=env['PATH']) or 'cl.exe'
+    if experimental_five:command.insert(1,'/DWICKED_EXPERIMENTAL_FIVE')
     subprocess.run(command,cwd=obj,env=env,check=True)
     print('Built '+str(output/'WickedAdapter.dll'))
 
 
-if __name__=='__main__':build()
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--experimental-five',action='store_true')
+    build(parser.parse_args().experimental_five)

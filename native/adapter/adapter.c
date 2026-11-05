@@ -259,6 +259,9 @@ static BOOL AddHook(size_t rva, void *detour, void **original) {
     if (status != MH_OK) { Log("native-hook-create-failed", (LONG)status); return FALSE; }
     return TRUE;
 }
+#ifdef WICKED_EXPERIMENTAL_FIVE
+#include "five_player_experiment.h"
+#endif
 static void InstallGameHooks(HMODULE module) {
     if (InterlockedCompareExchange(&g_installing, 1, 0) != 0) return;
     g_image = (BYTE *)module;
@@ -289,6 +292,9 @@ static void InstallGameHooks(HMODULE module) {
         !AddHook(0x871c5d0, TickHook, (void **)&g_tick) ||
         !AddHook(0x8719090, StartedHook, (void **)&g_game_started) ||
         !AddHook(0x5bf6470, AddedHook, (void **)&g_added)) { Fatal(106, "game-hook-install-failed"); return; }
+#ifdef WICKED_EXPERIMENTAL_FIVE
+    if (!FiveInstall()) { Fatal(300, "five-player-experiment-install-failed"); return; }
+#endif
     void *send = (void *)GetProcAddress(GetModuleHandleW(L"ws2_32.dll"), "send");
     if (!send || MH_CreateHook(send, SendHook, (void **)&g_send) != MH_OK || MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
         Fatal(107, "native-network-hook-failed"); return;
