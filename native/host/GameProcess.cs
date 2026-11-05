@@ -18,7 +18,15 @@ namespace Wicked.Native {
         readonly string game,root,id,token;IntPtr process,primary,job;uint pid;
         MemoryMappedFile mapping;MemoryMappedViewAccessor view;
         internal GameProcess(string game,string root,string id,string token){this.game=game;this.root=root;this.id=id;this.token=token;}
-        internal static void ValidateBuild(string game){if(!File.Exists(Path.Combine(game,"NoRestForTheWicked.exe"))||Crypto.ShaFile(Path.Combine(game,"GameAssembly.dll"))!=AssemblyHash)throw new Exception("Unsupported GameAssembly.dll; native adapter only supports the verified v29466 build");}
+        internal static void ValidateBuild(string game){
+            string executable=Path.Combine(game,"NoRestForTheWicked.exe"),assembly=Path.Combine(game,"GameAssembly.dll");
+            if(!File.Exists(executable))throw new Exception("Game executable not found: "+executable+". Place wicked-client inside the game directory, beside NoRestForTheWicked.exe.");
+            if(!File.Exists(assembly))throw new Exception("GameAssembly.dll not found: "+assembly+". Check the game directory and installation files.");
+            string actual=Crypto.ShaFile(assembly);
+            if(actual!=AssemblyHash)throw new Exception("Unsupported GameAssembly.dll; native adapter only supports the verified v29466 build."+
+                Environment.NewLine+"Path: "+assembly+Environment.NewLine+"Expected SHA-256: "+AssemblyHash+
+                Environment.NewLine+"Actual SHA-256: "+actual+Environment.NewLine+"The displayed game version alone does not identify a compatible DLL.");
+        }
         internal void Run(Func<bool> cancelled,int seconds){
             ValidateBuild(game);string dll=Path.Combine(root,"WickedAdapter.dll");if(!File.Exists(dll))throw new Exception("WickedAdapter.dll is missing");
             string evidence=Path.Combine(root,"research");Directory.CreateDirectory(evidence);

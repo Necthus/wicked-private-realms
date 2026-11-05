@@ -10,6 +10,14 @@
 
 **不需要 Python、Frida、SSH 私钥或额外的服务器连接包。** 当前客户端已全面迁移到编译后的 EXE/DLL，需要 Windows x64 和 .NET Framework 4.8。旧 Python 实现保留在源码仓库，当前客户端包不包含它。
 
+## 启动目录与 DLL 校验错误
+
+启动器和原生宿主从自身目录向上查找最近的 `NoRestForTheWicked.exe`，兼容放在游戏根目录、标准 `wicked-client` 目录以及游戏目录内多套一层的解压目录。建议仍按上面的标准目录安装；放在游戏目录之外时，应移动整个客户端文件夹。直接调用宿主时，显式传入的 `--game-directory` 优先，路径错误不会自动改用其他目录。
+
+`Game executable not found` 表示没有找到游戏 EXE；`GameAssembly.dll not found` 表示所选游戏目录缺少 DLL。这两类错误不代表版本不兼容。
+
+`Unsupported GameAssembly.dll` 表示 DLL 的完整 SHA-256 与已验证构建不一致。错误会列出实际路径、预期哈希和实际哈希。同为 v29466 的版本标签不足以证明二进制一致；可在正常机器和故障机器分别运行 `Get-FileHash '游戏目录\GameAssembly.dll' -Algorithm SHA256` 进行比较。当前适配器使用固定函数地址偏移，不能通过删除哈希校验或直接加入未知哈希来证明兼容性，需先验证不同 DLL 的函数布局。
+
 ## Steam ID 与 GSE
 
 随包 GSE 正是当前已测试的 64 位 DLL，SHA-256：

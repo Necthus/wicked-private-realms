@@ -24,9 +24,7 @@ namespace Wicked.Native {
                 string server=Value(config,"server"),password=Value(config,"password"),id=Steam.Validate(Value(config,"steam_id"));
                 string cancel=Argument(args,"--cancel-file"),secondsText=Argument(args,"--seconds");
                 int seconds=string.IsNullOrEmpty(secondsText)?0:int.Parse(secondsText);
-                string game=Argument(args,"--game-directory");
-                if(string.IsNullOrEmpty(game))game=Directory.GetParent(Root).FullName;
-                game=Path.GetFullPath(game);
+                string game=GameInstallation.Resolve(Root,Argument(args,"--game-directory"));
                 Func<bool> cancelled=()=>!string.IsNullOrEmpty(cancel)&&File.Exists(cancel);
                 bool bridgeOnly=args.Contains("--bridge-only"),networkOnly=args.Contains("--network-check");
                 var address=Address.Parse(server);
