@@ -4,7 +4,7 @@
 
 ## 下载与教程
 
-本 fork 的发布包见 [Releases](https://github.com/muxinyu1/wicked-private-realms/releases)，最新提交的客户端与服务端构建包可从 [Actions](https://github.com/muxinyu1/wicked-private-realms/actions/workflows/ci.yml) 的 Artifacts 下载。上游基线为 v0.2.5；本 fork 还包含游戏目录识别和 DLL 校验诊断修复。客户端已全面迁移到编译后的 WinForms 启动器、原生网络宿主和注入 DLL，下载约 2.5 MiB，不再携带 Python、Frida、JavaScript 或 runtime 目录。服务端继续使用 v0.1.4 Python 实现。
+正式发布包见 [Latest Release](https://github.com/Necthus/wicked-private-realms/releases/latest)，最新提交的客户端与服务端构建包可从 [Actions](https://github.com/Necthus/wicked-private-realms/actions/workflows/ci.yml) 的 Artifacts 下载。客户端已全面迁移到编译后的 WinForms 启动器、原生网络宿主和注入 DLL，下载约 2.5 MiB，不再携带 Python、Frida、JavaScript 或 runtime 目录。服务端继续使用 v0.1.4 Python 实现。
 
 | 文件 | 用途 | 教程 |
 |---|---|---|
@@ -57,7 +57,7 @@ tools/                  打包、部署及发布工具
 docs/                   安装与开发文档
 ```
 
-源码树不提交 EXE、DLL 或压缩包；用户下载请使用 [Releases](https://github.com/muxinyu1/wicked-private-realms/releases) 或 Actions 产物。每次 push/PR 自动测试并打包；推送版本标签后，全部检查通过才自动发布 Release。配置与使用见 [CI/CD 说明](docs/DEVELOPMENT.md#github-actions-cicd)。编译输出统一在忽略的 `native/dist/`，发布包输出在 `releases/`。原 Python 实现保留在 Git 中，可直接浏览和追溯历史。
+源码树不提交 EXE、DLL 或压缩包；用户下载请使用 [Releases](https://github.com/Necthus/wicked-private-realms/releases) 或 Actions 产物。每次 push/PR 自动测试并打包；推送版本标签后，全部检查通过才自动发布 Release。配置与使用见 [CI/CD 说明](docs/DEVELOPMENT.md#github-actions-cicd)。编译输出统一在忽略的 `native/dist/`，发布包输出在 `releases/`。原 Python 实现保留在 Git 中，可直接浏览和追溯历史。
 
 
 * 服务端入口：`server/run_private_server.py`；配置示例：`deploy/server-config.example.json`。

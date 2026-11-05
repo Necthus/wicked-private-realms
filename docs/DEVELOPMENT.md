@@ -2,7 +2,7 @@
 
 ## GitHub Actions CI/CD
 
-本 fork 在上游的跨平台测试与 Windows 原生编译工作流基础上增加了 `.github/workflows/ci.yml`，统一处理 `push`、`pull_request` 和手动 `workflow_dispatch`。首次 fork 后需要在仓库 Actions 页面启用工作流；本仓库已启用。
+仓库通过 `.github/workflows/ci.yml` 统一处理 `push`、`pull_request` 和手动 `workflow_dispatch`。首次 fork 后需要在仓库 Actions 页面启用工作流；本仓库已启用。
 
 每次运行会执行 Linux/Windows 单元测试、MSVC x64 DLL 编译与自检、.NET 宿主/启动器编译及原生网络回归，并生成完整客户端 ZIP 与独立服务端 ZIP。通过测试后，可在运行页面的 Artifacts 中下载 `native-client` 和 `standalone-server`（保留 14 天）；客户端 ZIP 内的 `native/BUILD-METADATA.json` 记录包版本与源码 commit。
 

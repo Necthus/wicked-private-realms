@@ -1,6 +1,6 @@
 # 客户端安装
 
-下载 [本 fork 的 Release](https://github.com/muxinyu1/wicked-private-realms/releases) 中的 **Client-Native ZIP**，或从 [Actions 构建](https://github.com/muxinyu1/wicked-private-realms/actions/workflows/ci.yml) 的 `native-client` Artifact 获取最新提交的包（先解压 Artifact，再解压其中的客户端 ZIP）。把整个 `wicked-client` 文件夹放入游戏目录，与 `NoRestForTheWicked.exe` 并列。更新时关闭游戏和启动器；从旧 Python 版升级请先移走整个旧目录，再解压原生包，避免残留旧运行环境。
+下载 [本仓库的 Release](https://github.com/Necthus/wicked-private-realms/releases) 中的 **Client-Native ZIP**，或从 [Actions 构建](https://github.com/Necthus/wicked-private-realms/actions/workflows/ci.yml) 的 `native-client` Artifact 获取最新提交的包（先解压 Artifact，再解压其中的客户端 ZIP）。把整个 `wicked-client` 文件夹放入游戏目录，与 `NoRestForTheWicked.exe` 并列。更新时关闭游戏和启动器；从旧 Python 版升级请先移走整个旧目录，再解压原生包，避免残留旧运行环境。
 
 1. 运行 `wicked-client/WickedLauncher.exe`。
 2. 填写服主提供的 **服务器地址、加入密码、自己的 17 位 Steam ID**。不带端口时使用 TCP 8443，也可填 `IP:端口`。
