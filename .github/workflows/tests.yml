@@ -1,8 +1,13 @@
 name: Tests
-on: [push, pull_request]
+on:
+  workflow_call:
+permissions:
+  contents: read
 jobs:
   unit-tests:
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}

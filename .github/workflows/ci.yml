@@ -1,0 +1,97 @@
+name: CI and Release
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  native:
+    uses: ./.github/workflows/native-build.yml
+
+  server:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/build_server_release.py --output releases/server
+      - uses: actions/upload-artifact@v4
+        with:
+          name: standalone-server
+          path: releases/server/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    needs: [tests, native, server]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*'
+          merge-multiple: true
+          path: releases/publish
+      - name: Generate checksums and release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          output = Path('releases/publish')
+          packages = sorted(output.glob('*.zip'))
+          if len(packages) != 2:
+              raise SystemExit('Expected exactly one client and one server ZIP')
+          (output / 'SHA256SUMS.txt').write_text(''.join(
+              hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n'
+              for p in packages), encoding='ascii')
+          repo, sha, tag = (os.environ[k] for k in ('GITHUB_REPOSITORY', 'GITHUB_SHA', 'RELEASE_TAG'))
+          notes = f'''# {tag}
+
+          从 [{sha[:7]}](https://github.com/{repo}/commit/{sha}) 自动构建。
+          已通过 Linux/Windows 单元测试、原生 DLL/宿主自检及原生网络回归。
+          自动测试不包含真实游戏会话验证；仍限定已核验的 v29466 GameAssembly.dll。
+
+          分别下载客户端 ZIP 与独立服务端 ZIP，并使用 SHA256SUMS.txt 校验。
+          升级前关闭游戏和启动器，保留 data/launcher-settings.json 与 data/server-trust。
+
+          [客户端安装](https://github.com/{repo}/blob/{sha}/docs/CLIENT.md) · [服务端部署](https://github.com/{repo}/blob/{sha}/docs/SERVER.md)
+          '''
+          (output / 'RELEASE-NOTES.md').write_text(notes, encoding='utf-8')
+          PY
+      - name: Publish this tag's tested packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          flags=()
+          if [[ "$RELEASE_TAG" != *-* ]]; then flags+=(--stable); fi
+          python tools/publish_github_release.py \
+            --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG" --commit "$GITHUB_SHA" \
+            --notes releases/publish/RELEASE-NOTES.md "${flags[@]}" \
+            releases/publish/*.zip releases/publish/SHA256SUMS.txt

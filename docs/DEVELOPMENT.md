@@ -1,5 +1,26 @@
 # 开发与构建
 
+## GitHub Actions CI/CD
+
+本 fork 在上游的跨平台测试与 Windows 原生编译工作流基础上增加了 `.github/workflows/ci.yml`，统一处理 `push`、`pull_request` 和手动 `workflow_dispatch`。首次 fork 后需要在仓库 Actions 页面启用工作流；本仓库已启用。
+
+每次运行会执行 Linux/Windows 单元测试、MSVC x64 DLL 编译与自检、.NET 宿主/启动器编译及原生网络回归，并生成完整客户端 ZIP 与独立服务端 ZIP。通过测试后，可在运行页面的 Artifacts 中下载 `native-client` 和 `standalone-server`（保留 14 天）；客户端 ZIP 内的 `native/BUILD-METADATA.json` 记录包版本与源码 commit。
+
+普通分支构建的客户端版本为 `v0.2.5-ci.<运行号>.<重试号>`。从版本标签运行时使用标签作为客户端版本，例如 `v0.2.6` 或 `v0.2.6-rc.1`。服务端继续使用独立版本 `v0.1.4`。
+
+CI 通过 `tools/fetch_ci_gse.py` 下载上游固定 `v0.2.5` 客户端包并校验整个 ZIP 的固定 SHA-256，只从中提取 GSE。客户端三个 EXE/DLL 均使用本次源码重新编译的产物；打包脚本还会核验 GSE DLL 的既有固定哈希。上游包内容发生变化会使构建失败，需要核对后显式更新固定校验值，不自动跟随 Latest。
+
+发布新版本：
+
+```powershell
+git tag v0.2.6
+git push origin v0.2.6
+```
+
+只有 `v*` 标签的 push 会自动发布 Release，并且必须等待测试、原生构建和服务端打包全部成功。版本格式为 `v主版本.次版本.补丁版本`，可追加 `-rc.1` 等预发布后缀。含 `-` 的标签发布为 prerelease；其他版本标记为 Latest。每个 Release 包含两个 ZIP 和汇总的 `SHA256SUMS.txt`。上传先写入草稿，所有资产成功上传后再公开；已发布的同名 Release 不会被覆盖。
+
+普通 push、PR 和手动运行仅构建产物，不创建 Release。仅发布 job 使用短期 `GITHUB_TOKEN` 的 `contents: write` 权限；测试和构建均为只读，不需要额外配置 PAT 或 SSH/服务器密钥。CD 的范围是发布下载包，不会连接或重启正在运行的私服。自动化测试不代表已完成真实游戏会话验证。
+
 ## 测试
 
 Python 3.11+：
