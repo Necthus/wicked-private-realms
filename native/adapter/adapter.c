@@ -28,13 +28,13 @@ static volatile LONG g_initialized, g_installing;
 static SRWLOCK g_log_lock = SRWLOCK_INIT, g_string_lock = SRWLOCK_INIT;
 static DWORD g_peer_tls = TLS_OUT_OF_INDEXES;
 typedef void *(__cdecl *StringNew)(const char *);
-typedef uint32_t (__cdecl *GcNew)(void *, uint8_t);
-typedef void (__cdecl *GcFree)(uint32_t);
+typedef uintptr_t (__cdecl *GcNew)(void *, uint8_t);
+typedef void (__cdecl *GcFree)(uintptr_t);
 static StringNew g_string_new;
 static GcNew g_gc_new;
 static GcFree g_gc_free;
 static void *g_strings[7];
-static uint32_t g_string_handles[7];
+static uintptr_t g_string_handles[7];
 
 static void Log(const char *event, LONG value) {
     if (!g_config || !g_config->log_path[0]) return;
@@ -189,7 +189,7 @@ static BOOL EndsWith(const char *text, const char *suffix) {
     size_t a = strlen(text), b = strlen(suffix);
     return a >= b && _stricmp(text + a - b, suffix) == 0;
 }
-static void *RedirectUri(void *uri, uint32_t *handle) {
+static void *RedirectUri(void *uri, uintptr_t *handle) {
     *handle = 0;
     int length = ManagedLength(uri);
     if (length <= 0 || length > 4096) return uri;
@@ -219,9 +219,9 @@ typedef void (__cdecl *Uri1)(void *, void *, void *);
 typedef void (__cdecl *Uri2)(void *, void *, int, void *);
 typedef void (__cdecl *Uri3)(void *, void *, uint8_t, int, void *);
 static Uri1 g_uri1; static Uri2 g_uri2; static Uri3 g_uri3;
-static void __cdecl Uri1Hook(void *self, void *uri, void *method) { uint32_t h; uri = RedirectUri(uri, &h); g_uri1(self, uri, method); if (h) g_gc_free(h); }
-static void __cdecl Uri2Hook(void *self, void *uri, int kind, void *method) { uint32_t h; uri = RedirectUri(uri, &h); g_uri2(self, uri, kind, method); if (h) g_gc_free(h); }
-static void __cdecl Uri3Hook(void *self, void *uri, uint8_t escape, int kind, void *method) { uint32_t h; uri = RedirectUri(uri, &h); g_uri3(self, uri, escape, kind, method); if (h) g_gc_free(h); }
+static void __cdecl Uri1Hook(void *self, void *uri, void *method) { uintptr_t h; uri = RedirectUri(uri, &h); g_uri1(self, uri, method); if (h) g_gc_free(h); }
+static void __cdecl Uri2Hook(void *self, void *uri, int kind, void *method) { uintptr_t h; uri = RedirectUri(uri, &h); g_uri2(self, uri, kind, method); if (h) g_gc_free(h); }
+static void __cdecl Uri3Hook(void *self, void *uri, uint8_t escape, int kind, void *method) { uintptr_t h; uri = RedirectUri(uri, &h); g_uri3(self, uri, escape, kind, method); if (h) g_gc_free(h); }
 
 typedef uint8_t (__cdecl *PeerSend)(void *, void *);
 typedef void (__cdecl *PeerPing)(void *, uint8_t, void *);
@@ -347,7 +347,7 @@ static void *FakeString(const char *text) {
     MultiByteToWideChar(CP_UTF8, 0, text, -1, (wchar_t *)(result + 20), n);
     return result;
 }
-static uint32_t FakeGc(void *value, uint8_t pinned) { (void)value; (void)pinned; return 1; }
+static uintptr_t FakeGc(void *value, uint8_t pinned) { (void)value; (void)pinned; return (uintptr_t)0x100000001ull; }
 static unsigned g_join_test_calls;
 static void *g_join_test_args[4];
 static uint8_t g_join_test_prologue, g_join_test_respawn;
@@ -429,7 +429,7 @@ __declspec(dllexport) DWORD WINAPI WickedAdapterSelfTest(void *unused) {
     if (IsPrivatePeer(peer)) bits |= 4;
     *(void **)(peer + 0x30) = FakeString("official.invalid:5055");
     if (!IsPrivatePeer(peer)) bits |= 8;
-    if (ManagedEquals(ManagedCached(4), L"selftest-token")) bits |= 16;
+    if (ManagedEquals(ManagedCached(4), L"selftest-token") && g_string_handles[4] == (uintptr_t)0x100000001ull) bits |= 16;
     if (TestJoinForwarding(&config)) bits |= 32;
     if (TestLocalRealmIsolation()) bits |= 64;
     g_config = NULL;

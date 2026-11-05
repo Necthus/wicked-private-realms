@@ -27,7 +27,7 @@ python native/test_native_host.py
 python native/build_native_release.py --gse-from <已发布原生客户端ZIP>
 ```
 
-原生 DLL、宿主和启动器统一输出到 `native/dist`。启动脚本和 .config 源文件在 `native/launcher/`。发布包输出到 `releases/public-v0.2.4`。用户客户端不包含构建工具或 Python 环境。
+原生 DLL、宿主和启动器统一输出到 `native/dist`。启动脚本和 .config 源文件在 `native/launcher/`。发布包输出到 `releases/public-v0.2.5`。用户客户端不包含构建工具或 Python 环境。
 
 将发布包部署到游戏目录：
 

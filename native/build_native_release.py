@@ -6,7 +6,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = 'v0.2.4'
+VERSION = 'v0.2.5'
 BINARIES = ('WickedLauncher.exe', 'WickedNativeHost.exe', 'WickedAdapter.dll')
 GSE_HASH = '723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88'
 
