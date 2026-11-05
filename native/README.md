@@ -1,6 +1,6 @@
 # Compiled native client
 
-Current release: v0.2.3. The client has fully migrated to compiled EXE/DLL delivery. See docs/NATIVE-MIGRATION.md for installation, validation and rollback.
+Current release: v0.2.4. The client has fully migrated to compiled EXE/DLL delivery. See docs/NATIVE-MIGRATION.md for installation, validation and rollback.
 
 Sources: launcher/launcher.cs (WinForms), host/*.cs (.NET Framework 4.8 x64), adapter/adapter.c (MSVC x64 /MT), vendor/minhook (v1.3.4).
 
@@ -11,3 +11,5 @@ Keep the source checkout separate from the game installation. Build with build_n
 Integration state, real game logs, source database copies and trust pins must never be exported to GitHub or Release. Earlier v0.2.1-native was withdrawn; use the current release.
 
 All compiled output goes to native/dist/ and is ignored by Git. EXE/DLL files are distributed only as Release assets.
+
+Local realms remain local until explicitly shared. Join-time automatic realm upload is bypassed for local-only saves, and prologue eligibility is passed through unchanged. Adapter self-test success mask: 0x7F. See docs/LOCAL-REALMS.md and docs/PROLOGUE-RESTORE.md.

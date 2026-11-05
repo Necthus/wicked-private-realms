@@ -16,7 +16,7 @@ typedef struct NativeConfig {
     uint32_t image_size, image_timestamp;
     char steam_id[32], endpoint[128], token[4096];
     wchar_t log_path[1024];
-    uint32_t flags;
+    uint32_t reserved_flags; /* Retain the v1 layout; legacy skip-prologue flags are ignored. */
 } NativeConfig;
 #pragma pack(pop)
 C_ASSERT(sizeof(NativeConfig) == 6340);
@@ -128,6 +128,10 @@ typedef uint8_t (__cdecl *IsSolo)(void *, void *);
 typedef void *(__cdecl *GetEntry)(void *, void *, void *);
 static IsSolo g_is_solo;
 static GetEntry g_get_entry;
+static BYTE *RealmEntry(void *realm) {
+    void *owner = realm ? *(void **)realm : NULL;
+    return owner ? (BYTE *)g_get_entry((BYTE *)owner + 0x118, (BYTE *)realm + 8, NULL) : NULL;
+}
 static uint8_t __cdecl SoloHook(void *realm, void *method) {
     uint8_t solo = g_is_solo(realm, method);
     if (!solo) return 0;
@@ -137,6 +141,18 @@ static uint8_t __cdecl SoloHook(void *realm, void *method) {
         if (entry && *(int *)(entry + 0x10) == -1 && *(int *)(entry + 0x18) >= 0) return 0;
     }
     return solo;
+}
+typedef uint8_t (__cdecl *EnsureRemoteSaves)(void *, void *, void *, void *);
+static EnsureRemoteSaves g_ensure_remote_saves;
+static uint8_t __cdecl EnsureRemoteSavesHook(void *self, void *character, void *realm, void *method) {
+    BYTE *entry = RealmEntry(realm);
+    if (entry && *(int *)(entry + 0x10) == -1 && *(int *)(entry + 0x14) >= 0 && *(int *)(entry + 0x18) == -1) {
+        /* Ordinary local play must not invoke the game's automatic cloud upload.
+           The Share button uploads via Realm.Upload, outside this join-time check. */
+        Log("local-realm-join-without-upload", 1);
+        return 0;
+    }
+    return g_ensure_remote_saves(self, character, realm, method);
 }
 typedef uint8_t (__cdecl *Connect)(void *, void *, void *);
 static Connect g_connect;
@@ -151,7 +167,8 @@ typedef void (__cdecl *JoinSession)(void *, void *, void *, uint8_t, uint8_t, vo
 static JoinSession g_join;
 static void __cdecl JoinHook(void *self, void *character, void *realm, uint8_t prologue, uint8_t respawn, void *method) {
     Log("session-join-request", prologue);
-    g_join(self, character, realm, (g_config->flags & 1) ? 0 : prologue, respawn, method);
+    /* The game owns tutorial eligibility for both local and shared realms. */
+    g_join(self, character, realm, prologue, respawn, method);
 }
 static MoveNext g_shared_ready;
 static void __cdecl SharedReadyHook(void *self, void *method) {
@@ -259,6 +276,7 @@ static void InstallGameHooks(HMODULE module) {
         !AddHook(0x5845e00, RequestHook, (void **)&g_request) ||
         !AddHook(0x8abc680, OfflineHook, (void **)&g_offline_init) ||
         !AddHook(0x8aee5a0, SoloHook, (void **)&g_is_solo) ||
+        !AddHook(0x890e6c0, EnsureRemoteSavesHook, (void **)&g_ensure_remote_saves) ||
         !AddHook(0x70496f0, ConnectHook, (void **)&g_connect) ||
         !AddHook(0x890d2c0, JoinHook, (void **)&g_join) ||
         !AddHook(0x890f060, SharedReadyHook, (void **)&g_shared_ready) ||
@@ -276,7 +294,7 @@ static void InstallGameHooks(HMODULE module) {
         Fatal(107, "native-network-hook-failed"); return;
     }
     InterlockedExchange(&g_config->status, 3);
-    Log("native-game-hooks-installed", 17);
+    Log("native-game-hooks-installed", 18);
 }
 typedef NTSTATUS (NTAPI *LdrLoad)(PWSTR, PULONG, PUNICODE_STRING, PHANDLE);
 static LdrLoad g_ldr_load;
@@ -330,6 +348,68 @@ static void *FakeString(const char *text) {
     return result;
 }
 static uint32_t FakeGc(void *value, uint8_t pinned) { (void)value; (void)pinned; return 1; }
+static unsigned g_join_test_calls;
+static void *g_join_test_args[4];
+static uint8_t g_join_test_prologue, g_join_test_respawn;
+static void __cdecl CaptureJoin(void *self, void *character, void *realm, uint8_t prologue, uint8_t respawn, void *method) {
+    ++g_join_test_calls;
+    g_join_test_args[0] = self; g_join_test_args[1] = character;
+    g_join_test_args[2] = realm; g_join_test_args[3] = method;
+    g_join_test_prologue = prologue; g_join_test_respawn = respawn;
+}
+static BOOL TestJoinForwarding(NativeConfig *config) {
+    JoinSession saved = g_join;
+    BYTE sentinels[4];
+    BOOL passed = TRUE;
+    g_join = CaptureJoin;
+    /* Include the old host's flags=1: updating the DLL alone must restore the tutorial. */
+    for (uint32_t legacy_flags = 0; legacy_flags <= 1; ++legacy_flags) {
+        config->reserved_flags = legacy_flags;
+        for (uint8_t prologue = 0; prologue <= 1; ++prologue) {
+            for (uint8_t respawn = 0; respawn <= 1; ++respawn) {
+                g_join_test_calls = 0;
+                JoinHook(&sentinels[0], &sentinels[1], &sentinels[2], prologue, respawn, &sentinels[3]);
+                if (g_join_test_calls != 1 || g_join_test_prologue != prologue || g_join_test_respawn != respawn)
+                    passed = FALSE;
+                for (int i = 0; i < 4; ++i) if (g_join_test_args[i] != &sentinels[i]) passed = FALSE;
+            }
+        }
+    }
+    config->reserved_flags = 0;
+    g_join = saved;
+    return passed;
+}
+static BYTE g_test_realm_entry[0x40];
+static unsigned g_remote_check_calls;
+static void *FakeRealmEntry(void *owner, void *id, void *method) {
+    (void)owner; (void)id; (void)method;
+    return g_test_realm_entry;
+}
+static uint8_t CaptureEnsureRemoteSaves(void *self, void *character, void *realm, void *method) {
+    (void)self; (void)character; (void)realm; (void)method;
+    ++g_remote_check_calls;
+    return 1;
+}
+static BOOL TestLocalRealmIsolation(void) {
+    GetEntry saved_entry = g_get_entry;
+    EnsureRemoteSaves saved_ensure = g_ensure_remote_saves;
+    BYTE owner[0x140], realm[24];
+    ZeroMemory(owner, sizeof(owner)); ZeroMemory(realm, sizeof(realm));
+    *(void **)realm = owner;
+    g_get_entry = FakeRealmEntry; g_ensure_remote_saves = CaptureEnsureRemoteSaves;
+    BOOL passed = TRUE;
+    const int indices[][3] = { {-1, 0, -1}, {-1, -1, 0}, {-1, 0, 0}, {-1, -1, -1}, {0, -1, -1} };
+    for (int i = 0; i < 5; ++i) {
+        *(int *)(g_test_realm_entry + 0x10) = indices[i][0];
+        *(int *)(g_test_realm_entry + 0x14) = indices[i][1];
+        *(int *)(g_test_realm_entry + 0x18) = indices[i][2];
+        g_remote_check_calls = 0;
+        uint8_t result = EnsureRemoteSavesHook(NULL, NULL, realm, NULL);
+        if (result != (i == 0 ? 0 : 1) || g_remote_check_calls != (i == 0 ? 0 : 1)) passed = FALSE;
+    }
+    g_get_entry = saved_entry; g_ensure_remote_saves = saved_ensure;
+    return passed;
+}
 __declspec(dllexport) DWORD WINAPI WickedAdapterSelfTest(void *unused) {
     (void)unused;
     DWORD bits = 0;
@@ -350,6 +430,8 @@ __declspec(dllexport) DWORD WINAPI WickedAdapterSelfTest(void *unused) {
     *(void **)(peer + 0x30) = FakeString("official.invalid:5055");
     if (!IsPrivatePeer(peer)) bits |= 8;
     if (ManagedEquals(ManagedCached(4), L"selftest-token")) bits |= 16;
+    if (TestJoinForwarding(&config)) bits |= 32;
+    if (TestLocalRealmIsolation()) bits |= 64;
     g_config = NULL;
     return bits;
 }

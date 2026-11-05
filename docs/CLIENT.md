@@ -37,3 +37,9 @@ GSE 为独立的 LGPL 第三方组件，其许可证和来源说明随包提供�
 ## 旧 Python 客户端
 
 原实现保留在 `archive/python-client/` 中供参考；历史发布包在 v0.1.3 Release。`ModuleNotFoundError: steam_identity` 属于旧 Python 包的导入问题，当前原生包没有该运行依赖。正常升级请使用最新原生完整包，详见 [迁移与回退](NATIVE-MIGRATION.md)。
+
+## v0.2.4 本地国度与序章修复
+
+通过启动器登录后，新建和进入纯本地国度保持本地保存，只有选择游戏中的“共享”才上传该国度。已有云端角色仍按原逻辑同步；世界与角色分别处理。教程是否播放由原游戏判断，补丁不再统一跳过船上序章。详见 [本地国度](LOCAL-REALMS.md) 和 [序章恢复](PROLOGUE-RESTORE.md)。
+
+更新已有原生客户端时，先退出游戏与启动器，再覆盖新包程序与文档，保留 `data/launcher-settings.json` 和 `data/server-trust`。服务器无需升级。此补丁不会自动将所有旧在线国度转回本地；需要恢复时先备份数据。

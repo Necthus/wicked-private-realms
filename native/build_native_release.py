@@ -6,7 +6,7 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = 'v0.2.3'
+VERSION = 'v0.2.4'
 BINARIES = ('WickedLauncher.exe', 'WickedNativeHost.exe', 'WickedAdapter.dll')
 GSE_HASH = '723e13f5a2e1ec799f342612a3294229ca832d143fdea85c00025216b6696e88'
 
@@ -23,6 +23,8 @@ def main():
     entries.update({p.relative_to(ROOT).as_posix(): p for p in (ROOT / 'plugin/gse').rglob('*')
                     if p.is_file() and p.name != 'steam_api64.dll'})
     entries['README.md'] = ROOT / 'docs/NATIVE-MIGRATION.md'
+    entries['PROLOGUE-RESTORE.md'] = ROOT / 'docs/PROLOGUE-RESTORE.md'
+    entries['LOCAL-REALMS.md'] = ROOT / 'docs/LOCAL-REALMS.md'
     entries['native/MinHook-LICENSE.txt'] = ROOT / 'native/vendor/minhook/LICENSE.txt'
     binaries = {}
     if args.binaries_from:

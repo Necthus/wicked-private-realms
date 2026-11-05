@@ -1,19 +1,21 @@
-# v0.2.3 — 原生客户端正式版
+# v0.2.4 — 本地国度与序章流程修复
 
-客户端已全面迁移到编译后的 WinForms 启动器、网络宿主 EXE 与游戏适配 DLL。完整客户端约 2.5 MiB，不再携带 Python、Frida、JavaScript 或 runtime 目录。原 Python 客户端源码仍完整保留，作为历史实现与协议参考；服务端继续使用 Python。
+修复通过启动器登录后，新建本地国度在进入时被自动上传并变为在线的问题。纯本地国度现在保持本地运行和保存，只有主动选择游戏中的“共享”才执行原上传流程。已有共享国度继续在线运行。
 
-本次 Release 分别提供：
+同时移除强制跳过船上序章的覆盖，原样转发游戏提供的序章与重生参数。游戏仍会按角色和进度决定序章资格；本次修复不会重置教程完成状态或强制重复播放序章。
 
-- `Wicked-Private-Realms-Client-Native-v29466-v0.2.3.zip`：玩家下载，解压到游戏 EXE 旁，运行启动器，填写服务器地址、加入密码与 Steam ID。
-- `Wicked-Private-Realms-Server-v0.1.4.zip`：服主下载，配置加入密码、持久数据目录与 TLS 端口；与原 v0.1.4 包字节一致。已有服务器无需升级或转换存档。
-- `SHA256SUMS.txt`：上述两个包的 SHA-256。
+下载分别提供：
 
-维护者已对当前原生版本进行游戏内手动测试并确认正常。客户端三个二进制与已测 v0.2.2-native 相同，本次更新文档、版本元数据与正式发布状态。此前通过 DLL 自检 0x1F、宿主 15 项自检、14 项网关/原生网络测试，以及独立数据库的游戏入场、定时保存、返回菜单保存和玩家移除验证。这些验证不代表所有硬件、游戏流程及长期场景均已覆盖。
+- `Wicked-Private-Realms-Client-Native-v29466-v0.2.4.zip`：完整原生客户端，约 2.5 MiB，含 WinForms 启动器、网络宿主、适配 DLL、GSE 与设置模板。
+- `Wicked-Private-Realms-Server-v0.1.4.zip`：与此前发布的服务端包字节一致，现有服务器无需升级或转换数据库。
+- `SHA256SUMS.txt`：上述两个包的校验值。
 
-源码、构建和游戏部署目录分开，新增原生启动器构建与 Release 部署工具。原 Python 实现保留；游戏目录仅需 Release 文件与运行时生成的设置、信任记录和日志。
+验证：DLL 自检 0x7F，覆盖入场全部参数转发及本地/远端/合并存档分支；宿主 15 项自检；14 项原生网络回归。实际游戏完成本地世界转换、重读、会话启动、周期保存与返回菜单保存；隔离服务器确认主动共享后才创建在线国度。完整五客户端测试不在本次范围内，本版本仍保持四人上限。
 
-从旧 Python 包升级：关闭游戏与启动器，将旧 `wicked-client` 移走备份，再完整解压新包；不要合并旧 runtime。可自行迁回 `data/launcher-settings.json` 和 `data/server-trust`。需要 Windows x64 与 .NET Framework 4.8，游戏构建限定 v29466。GSE DLL 与全部设置模板随客户端包提供。
+客户端二进制复用本机已安装验证的本地国度修复版。源码保留既有目录结构，Python 客户端归档仍在 `archive/python-client/`，EXE/DLL 仅在 Release 提供。
 
-这是非 Pre-release 的正式版本，并设为 GitHub Latest；此前版本全标记为预发布，导致仓库主页没有正常显示正式最新版。
+更新已有 v0.2.x 原生客户端：退出游戏与启动器，覆盖新包程序和文档，保留 `data/launcher-settings.json` 与 `data/server-trust`。从旧 Python 包迁移请先完整移走旧目录再解压新包。需要 Windows x64、.NET Framework 4.8 和匹配的 v29466 游戏。
 
-教程：[客户端安装](https://github.com/Necthus/wicked-private-realms/blob/main/docs/CLIENT.md) · [服务端部署](https://github.com/Necthus/wicked-private-realms/blob/main/docs/SERVER.md) · [迁移与回退](https://github.com/Necthus/wicked-private-realms/blob/main/docs/NATIVE-MIGRATION.md)
+本地国度不上传，不代表已有云端角色停止同步。补丁阻止后续自动上传，不会自动找回所有曾误上传的国度；恢复旧世界前请先备份，保留最新内容。
+
+教程：[客户端安装](https://github.com/Necthus/wicked-private-realms/blob/main/docs/CLIENT.md) · [本地国度](https://github.com/Necthus/wicked-private-realms/blob/main/docs/LOCAL-REALMS.md) · [序章恢复](https://github.com/Necthus/wicked-private-realms/blob/main/docs/PROLOGUE-RESTORE.md) · [服务端部署](https://github.com/Necthus/wicked-private-realms/blob/main/docs/SERVER.md)

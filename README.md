@@ -4,11 +4,11 @@
 
 ## 下载与教程
 
-当前推荐版本为 [v0.2.3 正式版（Latest）](https://github.com/Necthus/wicked-private-realms/releases/latest)。客户端已全面迁移到编译后的 WinForms 启动器、原生网络宿主和注入 DLL，下载约 2.5 MiB，不再携带 Python、Frida、JavaScript 或 runtime 目录。服务端继续使用 v0.1.4 Python 实现。
+当前推荐版本为 [v0.2.4 正式版（Latest）](https://github.com/Necthus/wicked-private-realms/releases/latest)。客户端已全面迁移到编译后的 WinForms 启动器、原生网络宿主和注入 DLL，下载约 2.5 MiB，不再携带 Python、Frida、JavaScript 或 runtime 目录。服务端继续使用 v0.1.4 Python 实现。
 
 | 文件 | 用途 | 教程 |
 |---|---|---|
-| `Wicked-Private-Realms-Client-Native-v29466-v0.2.3.zip` | 玩家完整原生客户端，含启动器、宿主、适配 DLL 和 GSE | [客户端安装](docs/CLIENT.md) |
+| `Wicked-Private-Realms-Client-Native-v29466-v0.2.4.zip` | 玩家完整原生客户端，含启动器、宿主、适配 DLL 和 GSE | [客户端安装](docs/CLIENT.md) |
 | `Wicked-Private-Realms-Server-v0.1.4.zip` | 独立服务端；配置加入密码后运行 | [服务端部署](docs/SERVER.md) |
 | `SHA256SUMS.txt` | 校验两个下载包 | — |
 
@@ -16,9 +16,11 @@
 
 原 Python 客户端源码完整保留在 `archive/python-client/`，作为历史实现、协议参考和故障排查资料；当前发布与维护的客户端使用原生实现。Python 仍用于服务端以及开发、构建和自动测试。
 
-服务端不需要游戏文件或 Steam。默认只开放 TCP 8443；支持 Docker 或 Python 部署，首次启动自动建立数据库和持久 TLS 证书。世界和角色保存在服主的数据目录；角色按 Steam ID 归属。
+服务端不需要游戏文件或 Steam。默认只开放 TCP 8443；支持 Docker 或 Python 部署，首次启动自动建立数据库和持久 TLS 证书。共享世界和云端角色保存在服主的数据目录；角色按 Steam ID 归属。本地国度保存在玩家电脑，主动选择“共享”后才上传。
 
 客户端默认安装随包 GSE 兼容层，把其他模拟版统一到已核对的 GSE Steam API；替换前备份原 DLL/设置。随包完整 `steam_settings` 使用去个人信息的模板，Steam ID 由玩家填写。正版可取消 GSE 选项，但仍要求匹配构建，正版游玩兼容性未全面验证。
+
+v0.2.4 修复登录私服后本地国度在入场时被自动上传的问题：新建和进入纯本地国度保持本地保存，只有主动选择“共享”才上传。同时移除强制跳过序章的覆盖，保留游戏自身的序章判断。见 [本地国度](docs/LOCAL-REALMS.md) 与 [序章恢复](docs/PROLOGUE-RESTORE.md)。
 
 v0.1.4 修复多人聊天中发送者收到额外回送而显示两次的问题；已有客户端无需更新，服主更新服务端并重启。
 
