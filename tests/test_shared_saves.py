@@ -5,6 +5,7 @@ from server import Store
 from game_backend import GameBackend
 from shared_saves import SharedSaves
 from save_wire import xxhash64,cerimal_checksum
+from photon_wire import Reader
 
 
 class Peer:
@@ -64,6 +65,34 @@ class SharedSaveTests(unittest.TestCase):
         self.upload()
         for _ in range(2):self.saves.message(self.peers[0],12,struct.pack('<i',2))
         self.assertEqual(2,len(self.peers[0].packets))
+
+    def test_departure_aborts_unfinished_save_without_false_success_or_exit_deadlock(self):
+        a,b=self.peers
+        self.saves.message(a,11,self.info);self.upload()
+        self.saves.message(a,12,struct.pack('<i',2))
+        self.assertFalse(self.saves.can_leave(1))
+        self.saves.player_left(2)
+        self.assertTrue(self.saves.records[2].aborted)
+        self.assertFalse(self.saves.records[2].committed)
+        self.assertTrue(self.saves.can_leave(1))
+        self.assertEqual(1,len(a.packets))
+        failure=Reader(a.packets[-1][3:]).params()[0]
+        self.assertEqual(4,failure[4])
+        self.saves.message(a,12,struct.pack('<i',2))
+        self.assertEqual(a.packets[-1],a.packets[-2])
+        with self.assertRaises(ValueError):self.upload()
+        with self.store.transaction() as db:
+            self.assertEqual(0,db.execute('SELECT count(*) FROM game_transport_saves').fetchone()[0])
+            self.assertEqual(1,db.execute('SELECT revision FROM game_entities WHERE id=?',(self.realm,)).fetchone()[0])
+
+    def test_committed_save_is_unchanged_by_departure(self):
+        for peer in self.peers:self.saves.message(peer,11,self.info)
+        self.upload();self.saves.message(self.peers[0],12,struct.pack('<i',2))
+        before=list(self.peers[0].packets)
+        self.saves.player_left(2)
+        self.assertTrue(self.saves.records[2].committed)
+        self.assertFalse(self.saves.records[2].aborted)
+        self.assertEqual(before,self.peers[0].packets)
 
     def test_departed_character_bundle_is_checked_but_not_overwritten(self):
         from save_wire import cycle_info,chunk,bundle

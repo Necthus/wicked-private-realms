@@ -103,4 +103,73 @@ class SharedRoomTests(unittest.TestCase):
         self.assertEqual(committed,self.a.inputs()[-1])
         self.assertEqual(committed,self.b.inputs()[-1])
 
+    def test_stalled_input_times_out_only_the_blocker_and_other_replica_resumes(self):
+        events=[];self.room.log=lambda name,**data:events.append((name,data))
+        self.start_first();self.join_second()
+        self.room.submit(1,[self.input(124,1)])
+        self.room.submit(2,[self.input(124,2)])
+        # Player 1 has provided future inputs. Player 2 stops while its TCP
+        # connection may still be alive. The shared confirmation cannot advance.
+        self.room.submit(1,[self.input(tick,1) for tick in range(125,130)])
+        packets=list(self.a.inputs());self.now+=6
+        self.assertEqual([],self.room.check_stalls())
+        stall=[data for name,data in events if name=='shared-input-stall'][-1]
+        self.assertEqual([2],stall['blockers'])
+        self.assertEqual(packets,self.a.inputs())
+        self.now+=25
+        self.assertEqual([self.b],self.room.check_stalls())
+        self.assertEqual([],self.room.check_stalls(),'One disconnect request per expired replica')
+        self.room.leave(2)  # The transport handler's normal EOF cleanup.
+        self.assertEqual(129,self.room.tick)
+        self.assertTrue(self.room.players[1].active)
+        self.assertEqual([],self.room.check_stalls())
+        self.room.submit(1,[self.input(130,3)])
+        self.assertEqual(130,self.room.tick)
+
+    def test_replaying_old_inputs_does_not_keep_a_blocker_alive(self):
+        self.start_first();self.join_second()
+        self.room.submit(1,[self.input(124,1)]);self.room.submit(2,[self.input(124,2)])
+        self.room.submit(1,[self.input(125,1)])
+        self.now+=31
+        self.room.submit(2,[self.input(124,2)])
+        self.assertEqual(self.now,self.room.players[2].last_input_at)
+        self.assertEqual([self.b],self.room.check_stalls())
+
+    def test_input_progress_recovery_cancels_timeout_before_expiry(self):
+        self.start_first();self.join_second()
+        self.room.submit(1,[self.input(124,1)]);self.room.submit(2,[self.input(124,2)])
+        self.room.submit(1,[self.input(125,1)]);self.now+=29
+        self.assertEqual([],self.room.check_stalls())
+        self.room.submit(2,[self.input(125,2)]);self.now+=2
+        self.assertEqual(125,self.room.tick);self.assertEqual([],self.room.check_stalls())
+        self.assertEqual(self.a.inputs()[-1],self.b.inputs()[-1])
+
+    def test_initial_loading_and_pending_snapshot_are_not_runtime_timeouts(self):
+        self.start_first();self.room.start(self.b,self.request)
+        self.now+=31
+        self.assertEqual([],self.room.check_stalls())
+        self.assertFalse(self.room.players[2].active)
+        # First player has not submitted any forward inputs yet: two-minute grace.
+        self.now+=90
+        self.assertEqual([self.a],self.room.check_stalls())
+
+    def test_timeout_can_be_disabled_without_disabling_diagnostics(self):
+        events=[];self.room.log=lambda name,**data:events.append((name,data))
+        self.room.stall_timeout=0
+        self.start_first();self.join_second()
+        self.room.submit(1,[self.input(124,1)]);self.room.submit(2,[self.input(124,2)])
+        self.room.submit(1,[self.input(125,1)]);self.now+=500
+        self.assertEqual([],self.room.check_stalls())
+        self.assertTrue(any(name=='shared-input-stall' for name,_ in events))
+
+    def test_normal_session_and_idle_controls_keep_advancing(self):
+        self.start_first();self.join_second()
+        for tick in range(124,424):
+            self.now+=1/60
+            self.room.submit(1,[self.input(tick,0)])
+            self.room.submit(2,[self.input(tick,0)])
+            self.assertEqual([],self.room.check_stalls())
+        self.assertEqual(423,self.room.tick)
+        self.assertEqual(self.a.inputs()[-300:],self.b.inputs()[-300:])
+
 if __name__=='__main__':unittest.main(verbosity=2)

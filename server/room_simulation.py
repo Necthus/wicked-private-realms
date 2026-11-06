@@ -6,6 +6,7 @@ game clients run the deterministic simulation; this service orders their inputs.
 from collections import OrderedDict,deque
 from dataclasses import dataclass,field
 import copy
+import math
 import struct
 import threading
 import time
@@ -28,10 +29,15 @@ class Player:
     commands:deque=field(default_factory=deque)
     add_data:bytes|None=None
     snapshot_pending:bool=False
+    activated_at:float=0.0
+    last_input_at:float|None=None
+    last_forward_at:float|None=None
+    last_received_tick:int|None=None
+    timeout_requested:bool=False
 
 
 class ConfirmedRoom:
-    def __init__(self,request,clock=time.monotonic,log=lambda *a,**kw:None):
+    def __init__(self,request,clock=time.monotonic,log=lambda *a,**kw:None,stall_timeout=30.0):
         if request['initialTick']!=0:raise ValueError('Fresh room requires a fresh session request')
         self.request=copy.deepcopy(request)
         self.config=self.request['config']
@@ -40,9 +46,50 @@ class ConfirmedRoom:
         self.config['InputDeltaCompression']=False
         self.tick=self.config['RollbackWindow']-1
         self.clock=clock;self.started=clock();self.log=log
+        self.stall_timeout=float(stall_timeout)
+        if not math.isfinite(self.stall_timeout) or self.stall_timeout<0:
+            raise ValueError('Input stall timeout must be finite and nonnegative')
+        self.last_frame_at=self.started;self.last_stall_report=None
         self.lock=threading.RLock();self.players={};self.history=OrderedDict()
         self.snapshot_source=None;self.snapshot_parts=[];self.snapshot_tick=None;self.snapshot_size=0
         self.closed=False
+
+    def check_stalls(self):
+        """Return blocking peers to disconnect, without taking transport locks.
+
+        Buffered peers may hit their prediction limit while waiting for someone
+        else. They must not be mistaken for the replica that blocked the room.
+        A live TCP heartbeat or replay of old inputs does not renew input progress.
+        """
+        if not self.lock.acquire(blocking=False):return []
+        try:
+            if self.closed:return []
+            now=self.clock();idle=now-self.last_frame_at
+            active=[p for p in self.players.values() if p.ready and p.active]
+            blocked=[p for p in active if p.horizon<=self.tick]
+            if not blocked or idle<5:return []
+            if self.last_stall_report is None or now-self.last_stall_report>=10:
+                self.last_stall_report=now
+                age=lambda t:None if t is None else round(now-t,3)
+                self.log('shared-input-stall',tick=self.tick,idle_seconds=round(idle,3),
+                         blockers=[p.actor for p in blocked],players=[{
+                             'actor':p.actor,'ready':p.ready,'active':p.active,'horizon':p.horizon,
+                             'last_received_tick':p.last_received_tick,'input_age_seconds':age(p.last_input_at),
+                             'progress_age_seconds':age(p.last_forward_at),
+                             'reported_rtt_ms':getattr(p.peer,'max_ping',None),
+                             'snapshot_pending':p.snapshot_pending} for p in self.players.values()])
+            expired=[]
+            for p in blocked:
+                # Initial scene/asset loading gets at least two minutes. Runtime
+                # input stalls use the configured limit, disabled when set to 0.
+                grace=max(120.0,self.stall_timeout) if p.last_forward_at is None else self.stall_timeout
+                since=p.activated_at if p.last_forward_at is None else p.last_forward_at
+                if not self.stall_timeout or p.timeout_requested or idle<grace or now-since<grace:continue
+                p.timeout_requested=True;expired.append(p.peer)
+                self.log('shared-input-timeout',actor=p.actor,tick=self.tick,horizon=p.horizon,
+                         idle_seconds=round(idle,3),progress_age_seconds=round(now-since,3))
+            return expired
+        finally:self.lock.release()
 
     def seconds(self):return max(0.0,self.clock()-self.started)
 
@@ -50,6 +97,7 @@ class ConfirmedRoom:
 
     def start(self,peer,request):
         with self.lock:
+            if self.closed:raise ValueError('This simulation session has closed; reconnect to the realm')
             if request['protocolVersion']!=self.request['protocolVersion']:
                 raise ValueError('Quantum protocol mismatch')
             for key in ('PlayerCount','UpdateFPS','InputFixedSize'):
@@ -106,7 +154,7 @@ class ConfirmedRoom:
             entries[p.index]=(p.last,flags,rpc)
         ping=max((getattr(p.peer,'max_ping',10) for p in self.players.values() if p.active),default=10)
         payload,_=input_frame(tick,entries,input_size=self.config['InputFixedSize'],server_time=self.seconds(),max_ping=ping)
-        self.tick=tick;self.history[tick]=payload
+        self.tick=tick;self.history[tick]=payload;self.last_frame_at=self.clock()
         while len(self.history)>3600:self.history.popitem(last=False)
         failed=[]
         for p in list(self.ready_players()):
@@ -129,6 +177,7 @@ class ConfirmedRoom:
             self._activate(p)
 
     def _activate(self,p):
+        p.activated_at=self.clock()
         rpc=struct.pack('<ii',p.actor,0)+p.add_data
         p.horizon=max(p.horizon,self.tick+2)
         self._emit_frame(joins={p.actor:rpc})
@@ -137,8 +186,13 @@ class ConfirmedRoom:
 
     def submit(self,actor,inputs):
         with self.lock:
-            p=self.players[actor]
+            p=self.players.get(actor)
+            if p is None:return
             if not p.ready or not p.active:return
+            if inputs:
+                p.last_input_at=self.clock()
+                p.last_received_tick=max(item['tick'] for item in inputs)
+            previous_horizon=p.horizon
             for item in inputs:
                 if item['slot']!=0 or len(item['data'])!=self.config['InputFixedSize']:
                     raise ValueError('Invalid player input')
@@ -152,6 +206,7 @@ class ConfirmedRoom:
                     # an already broadcast frame is never rewritten.
                     self.log('shared-pending-input-revised',actor=actor,tick=tick)
                 p.inputs[tick]=item;p.horizon=max(p.horizon,tick)
+            if p.horizon>previous_horizon:p.last_forward_at=self.clock()
             self._advance()
 
     def _advance(self):
@@ -182,13 +237,16 @@ class ConfirmedRoom:
             if p is not None:p.ready=False
             self.remove_player(actor)
             self.players.pop(actor,None)
+            if not self.players:
+                self.closed=True
             if self.snapshot_source==actor:
                 # No stale snapshot may be silently assigned to another source.
                 self.snapshot_source=None;self.snapshot_parts=[]
                 for p in self.players.values():
                     if p.snapshot_pending:
                         raw,_=pack('Disconnect',reason='Snapshot source left; reconnect to the realm')
-                        self.send_protocol(p,raw)
+                        try:self.send_protocol(p,raw)
+                        except OSError:pass
 
     def snapshot(self,actor,message):
         with self.lock:

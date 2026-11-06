@@ -1,4 +1,4 @@
-import socket,struct,threading,unittest,tempfile
+import socket,struct,threading,unittest,tempfile,time
 import json
 from types import SimpleNamespace
 from pathlib import Path
@@ -16,6 +16,80 @@ class TransportTests(unittest.TestCase):
         # Synthetic connections must not be mixed into live client evidence.
         self.log_patch=patch('transport.emit')
         self.log_patch.start();self.addCleanup(self.log_patch.stop)
+
+    def test_heartbeats_and_frames_share_one_serialized_tcp_writer(self):
+        entered=threading.Event();release=threading.Event()
+        class PartialSocket:
+            def __init__(self):self.data=bytearray();self.writes=0
+            def sendall(self,data):
+                self.writes+=1;self.data.extend(data[:3])
+                if self.writes==1:
+                    entered.set()
+                    if not release.wait(3):raise TimeoutError('Test writer was not released')
+                self.data.extend(data[3:])
+        h=Handler.__new__(Handler);h.request=PartialSocket();h.send_lock=threading.RLock()
+        payload=b'\xf3\x04frame-payload';ping=b'\x01\x02\x03\x04'
+        first=threading.Thread(target=h.send_packet,args=(payload,))
+        second=threading.Thread(target=h.send_ping,args=(ping,))
+        first.start();self.assertTrue(entered.wait(3));second.start()
+        try:
+            second.join(.05)
+            self.assertTrue(second.is_alive(),'Heartbeat must wait for the incomplete frame')
+            self.assertEqual(1,h.request.writes)
+        finally:release.set();first.join(3);second.join(3)
+        self.assertFalse(first.is_alive());self.assertFalse(second.is_alive())
+        expected=frame(payload);self.assertEqual(expected,h.request.data[:len(expected)])
+        reply=h.request.data[len(expected):]
+        self.assertEqual(9,len(reply));self.assertEqual(240,reply[0]);self.assertEqual(ping,reply[-4:])
+
+    def test_watchdog_disconnects_stalled_live_socket_and_recovers_other_player(self):
+        from room_simulation import ConfirmedRoom
+        request=json.loads((Path(__file__).resolve().parents[1]/'research/quantum-start-decoded.json').read_text())
+        request['runtimeConfig']=bytes(request['runtimeConfig'])
+        now=[10.0];timeline=ConfirmedRoom(request,clock=lambda:now[0])
+        server=Server(('127.0.0.1',0),Handler,allow_room_probe=True,shared_simulation=True)
+        server._watchdog_stop.set();server._watchdog.join(3)
+        sockets=[];threads=[];peers=[]
+        class Saves:
+            def __init__(self):self.departures=[]
+            def player_left(self,actor):self.departures.append(actor)
+        saves=Saves();room={'players':{},'timeline':timeline,'shared_saves':saves}
+        server.rooms['realm']=room
+        def wait_for_eof(peer):
+            try:
+                while peer.request.recv(1024):pass
+            except OSError:
+                pass
+            finally:peer.leave_room()
+        try:
+            for actor in (1,2):
+                left,right=socket.socketpair();sockets.extend((left,right))
+                h=Handler.__new__(Handler);h.request=left;h.server=server;h.actor=actor
+                h.identity={'account':str(actor),'realm':'realm'};h.room=room;h.send_lock=threading.RLock()
+                room['players'][actor]=h;peers.append(h)
+                timeline.start(h,request)
+                if actor==1:timeline.add_player(1,b'a')
+                else:
+                    timeline.add_player(2,b'b')
+                    timeline.snapshot(1,{'tick':timeline.tick,'total_size':1,'last':True,'data':b's'})
+                t=threading.Thread(target=wait_for_eof,args=(h,));threads.append(t);t.start()
+            item=lambda tick,value:{'tick':tick,'slot':0,'data':bytes([value])*47,'flags':1}
+            timeline.submit(1,[item(124,1)]);timeline.submit(2,[item(124,2)])
+            timeline.submit(1,[item(t,1) for t in range(125,130)])
+            now[0]+=31;server.check_room_stalls();threads[1].join(3)
+            self.assertFalse(threads[1].is_alive())
+            self.assertTrue(threads[0].is_alive())
+            self.assertEqual([2],saves.departures)
+            self.assertEqual(129,timeline.tick)
+            self.assertEqual([1],list(room['players']))
+            timeline.submit(1,[item(130,1)]);self.assertEqual(130,timeline.tick)
+        finally:
+            for sock in sockets:
+                try:sock.shutdown(socket.SHUT_RDWR)
+                except OSError:pass
+                sock.close()
+            for thread in threads:thread.join(3)
+            server.server_close()
     def test_private_auth_and_master_assignment(self):
         with tempfile.TemporaryDirectory() as temp:
             store=Store(Path(temp)/'game.sqlite3','x'*40)

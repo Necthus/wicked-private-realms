@@ -14,6 +14,7 @@ class Record:
     accounts:dict=field(default_factory=dict)
     requested:bool=False
     notified:set=field(default_factory=set)
+    aborted:bool=False
     @property
     def committed(self):return self.cycle.committed
 
@@ -26,7 +27,19 @@ class SharedSaves:
 
     def can_leave(self,actor):
         with self.lock:
-            return all(r.committed for r in self.records.values() if actor in r.cycle.info['actors'])
+            return all(r.committed or r.aborted for r in self.records.values() if actor in r.cycle.info['actors'])
+
+    def player_left(self,actor):
+        """Fail unfinished agreements rather than save without a participant."""
+        with self.lock:
+            for index,record in self.records.items():
+                if record.committed or record.aborted or actor not in record.cycle.info['actors']:continue
+                record.aborted=True
+                self.log('shared-save-aborted',cycle=index,actor=actor,reason='participant-left')
+                for other,peer in record.peers.items():
+                    if other==actor:continue
+                    try:self.reply(peer,index,kind=4)
+                    except OSError:pass
 
     def reply(self,peer,index,kind=0,ticks=0,mask=()):
         peer.send_packet(event(13,{0:finish_response(index,kind,ticks,mask),254:0}))
@@ -45,23 +58,26 @@ class SharedSaves:
                 record=self.records.get(index)
                 if record is None:
                     if len(self.records)>=8:
-                        done=[n for n,r in self.records.items() if r.committed]
+                        done=[n for n,r in self.records.items() if r.committed or r.aborted]
                         if not done:raise ValueError('Too many pending multiplayer saves')
                         self.records.pop(min(done))
                     record=Record(Cycle(info,{}),accounts=accounts);self.records[index]=record
                 elif record.cycle.info!=info or record.accounts!=accounts:
                     raise ValueError('Players disagree on save checksums, participants, or save dimensions')
+                if record.aborted:raise ValueError('Save cycle was aborted after a participant left')
                 record.peers[peer.actor]=peer
                 self.log('shared-save-declaration',cycle=index,actor=peer.actor,participants=info['actors'],provider=info['actor'])
                 self.attempt(index)
             elif code==10:
                 index,total,sequence,payload=chunk(data);record=self.records.get(index)
-                if record is None or record.cycle.info['actor']!=peer.actor:raise ValueError('Only the declared provider can upload save chunks')
+                if record is None or record.aborted or record.cycle.info['actor']!=peer.actor:raise ValueError('Only the declared provider of an open cycle can upload save chunks')
                 record.cycle.add(total,sequence,payload)
                 self.attempt(index)
             elif code==12:
                 index=finish_request(data);record=self.records.get(index)
                 if record is None or peer.actor not in record.cycle.info['actors']:raise ValueError('Unknown save-cycle finish request')
+                if record.aborted:
+                    self.reply(peer,index,kind=4);return
                 record.requested=True
                 if not record.cycle.complete():
                     self.reply(peer,index,kind=1,mask=record.cycle.mask())
@@ -70,6 +86,7 @@ class SharedSaves:
 
     def attempt(self,index):
         record=self.records[index];cycle=record.cycle
+        if record.aborted:return
         if not record.requested or not cycle.complete():return
         if set(record.peers)!=set(cycle.info['actors']):return
         if not cycle.committed:
