@@ -34,10 +34,13 @@ class Player:
     last_forward_at:float|None=None
     last_received_tick:int|None=None
     timeout_requested:bool=False
+    missing_since:float|None=None
+    fallback_active:bool=False
 
 
 class ConfirmedRoom:
-    def __init__(self,request,clock=time.monotonic,log=lambda *a,**kw:None,stall_timeout=30.0):
+    def __init__(self,request,clock=time.monotonic,log=lambda *a,**kw:None,
+                 stall_timeout=30.0,input_wait_timeout=0.12):
         if request['initialTick']!=0:raise ValueError('Fresh room requires a fresh session request')
         self.request=copy.deepcopy(request)
         self.config=self.request['config']
@@ -49,6 +52,10 @@ class ConfirmedRoom:
         self.stall_timeout=float(stall_timeout)
         if not math.isfinite(self.stall_timeout) or self.stall_timeout<0:
             raise ValueError('Input stall timeout must be finite and nonnegative')
+        self.input_wait_timeout=float(input_wait_timeout)
+        if not math.isfinite(self.input_wait_timeout) or self.input_wait_timeout<0:
+            raise ValueError('Input wait timeout must be finite and nonnegative')
+        self.fallback_next_at=None
         self.last_frame_at=self.started;self.last_stall_report=None
         self.lock=threading.RLock();self.players={};self.history=OrderedDict()
         self.snapshot_source=None;self.snapshot_parts=[];self.snapshot_tick=None;self.snapshot_size=0
@@ -67,8 +74,8 @@ class ConfirmedRoom:
             now=self.clock();idle=now-self.last_frame_at
             active=[p for p in self.players.values() if p.ready and p.active]
             blocked=[p for p in active if p.horizon<=self.tick]
-            if not blocked or idle<5:return []
-            if self.last_stall_report is None or now-self.last_stall_report>=10:
+            if not blocked:return []
+            if idle>=5 and (self.last_stall_report is None or now-self.last_stall_report>=10):
                 self.last_stall_report=now
                 age=lambda t:None if t is None else round(now-t,3)
                 self.log('shared-input-stall',tick=self.tick,idle_seconds=round(idle,3),
@@ -84,7 +91,8 @@ class ConfirmedRoom:
                 # input stalls use the configured limit, disabled when set to 0.
                 grace=max(120.0,self.stall_timeout) if p.last_forward_at is None else self.stall_timeout
                 since=p.activated_at if p.last_forward_at is None else p.last_forward_at
-                if not self.stall_timeout or p.timeout_requested or idle<grace or now-since<grace:continue
+                if not self.stall_timeout or p.timeout_requested or now-since<grace:continue
+                if idle<grace and not p.fallback_active:continue
                 p.timeout_requested=True;expired.append(p.peer)
                 self.log('shared-input-timeout',actor=p.actor,tick=self.tick,horizon=p.horizon,
                          idle_seconds=round(idle,3),progress_age_seconds=round(now-since,3))
@@ -131,8 +139,8 @@ class ConfirmedRoom:
 
     def ready_players(self):return [p for p in self.players.values() if p.ready]
 
-    def _emit_frame(self,joins=None,removals=None):
-        joins=joins or {};removals=removals or set();tick=self.tick+1
+    def _emit_frame(self,joins=None,removals=None,fallbacks=None):
+        joins=joins or {};removals=removals or set();fallbacks=fallbacks or set();tick=self.tick+1
         entries=[None]*4
         for p in sorted(self.players.values(),key=lambda x:x.index):
             if p.actor in removals:
@@ -144,6 +152,12 @@ class ConfirmedRoom:
             if item is not None:
                 p.last=item['data'];p.flags=item['flags']&1
                 flags=item['flags']&1
+                if p.fallback_active:self.log('shared-input-recovered',actor=p.actor,tick=tick)
+                p.fallback_active=False;p.missing_since=None
+            elif p.actor in fallbacks:
+                # A stalled player supplies no new intent. Never hold a stale
+                # attack/movement button or repeat the previous frame's RPC.
+                p.last=bytes(self.config['InputFixedSize']);p.flags=0;flags=4
             else:
                 if not p.flags&1:p.last=bytes(self.config['InputFixedSize'])
                 flags=(p.flags&1)|4
@@ -212,8 +226,44 @@ class ConfirmedRoom:
     def _advance(self):
         for _ in range(240):
             active=[p for p in self.players.values() if p.active and p.ready]
-            if not active or any(p.horizon<self.tick+1 for p in active):return
-            self._emit_frame()
+            if not active or max(p.horizon for p in active)<=self.tick:
+                self.fallback_next_at=None;return
+            blocked=[p for p in active if p.horizon<=self.tick]
+            now=self.clock()
+            for p in active:
+                if p not in blocked:p.missing_since=None
+                elif p.missing_since is None:p.missing_since=now
+            if blocked:
+                if not self.input_wait_timeout:return
+                for p in blocked:
+                    # Keep the existing initial scene-loading grace. A later
+                    # connection awaiting its snapshot is not active yet.
+                    if p.last_forward_at is None and now-p.activated_at<max(120.0,self.stall_timeout):return
+                    if not p.fallback_active and now-p.missing_since<self.input_wait_timeout:return
+                # A backlog of healthy inputs must not fast-forward the game
+                # when the first missing-input deadline expires.
+                interval=1.0/self.config['UpdateFPS']
+                if self.fallback_next_at is None:self.fallback_next_at=now
+                if now+1e-9<self.fallback_next_at:return
+                # Retain fractional credit across timer jitter; catch up at
+                # most a few frames after a delayed scheduler wake-up.
+                self.fallback_next_at=max(self.fallback_next_at,now-4*interval)+interval
+                for p in blocked:
+                    if not p.fallback_active:
+                        p.fallback_active=True
+                        self.log('shared-input-fallback',actor=p.actor,tick=self.tick+1,
+                                 wait_seconds=round(now-p.missing_since,3))
+                self._emit_frame(fallbacks={p.actor for p in blocked})
+            else:
+                self.fallback_next_at=None
+                self._emit_frame()
+
+    def service_inputs(self):
+        """Expire input waits even when the client handlers receive no packets."""
+        if not self.lock.acquire(blocking=False):return
+        try:
+            if not self.closed:self._advance()
+        finally:self.lock.release()
 
     def command(self,actor,data,slot=0):
         with self.lock:
@@ -263,14 +313,20 @@ class ConfirmedRoom:
             if received!=total:raise ValueError('Incomplete final snapshot')
             if self.history and tick<next(iter(self.history))-1:raise ValueError('Snapshot fell outside retained input history')
             waiting=[p for p in self.players.values() if p.snapshot_pending]
+            delivered=[]
             for p in waiting:
-                for part in self.snapshot_parts:
-                    raw,_=pack('FrameSnapshot',tick=part['tick'],total_size=part['total_size'],last=part['last'],data=part['data'])
-                    self.send_protocol(p,raw)
-                for n,raw in self.history.items():
-                    if n>tick:p.peer.send_packet(event(102,{245:raw,254:0}))
+                try:
+                    for part in self.snapshot_parts:
+                        raw,_=pack('FrameSnapshot',tick=part['tick'],total_size=part['total_size'],last=part['last'],data=part['data'])
+                        self.send_protocol(p,raw)
+                    for n,raw in self.history.items():
+                        if n>tick:p.peer.send_packet(event(102,{245:raw,254:0}))
+                except OSError:
+                    self.log('shared-snapshot-send-failed',actor=p.actor)
+                    self.leave(p.actor);continue
                 p.snapshot_pending=False;p.ready=True;p.horizon=self.tick
+                delivered.append(p)
                 self.log('shared-snapshot-delivered',target=p.actor,tick=tick,bytes=received,catchup_to=self.tick)
             self.snapshot_source=None;self.snapshot_parts=[]
-            for p in waiting:
+            for p in delivered:
                 if p.add_data is not None:self._activate(p)
