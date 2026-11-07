@@ -10,6 +10,7 @@ from server import Store
 from game_backend import GameBackend
 from quantum_wire import pack,Bits
 from save_wire import bundle
+from transport_writer import QueuedWriter
 
 class TransportTests(unittest.TestCase):
     def setUp(self):
@@ -41,6 +42,72 @@ class TransportTests(unittest.TestCase):
         expected=frame(payload);self.assertEqual(expected,h.request.data[:len(expected)])
         reply=h.request.data[len(expected):]
         self.assertEqual(9,len(reply));self.assertEqual(240,reply[0]);self.assertEqual(ping,reply[-4:])
+
+    def test_real_socket_backpressure_does_not_block_confirmed_timeline(self):
+        from room_simulation import ConfirmedRoom
+        request=json.loads((Path(__file__).resolve().parents[1]/'research/quantum-start-decoded.json').read_text())
+        request['runtimeConfig']=bytes(request['runtimeConfig'])
+        now=[10.0];timeline=ConfirmedRoom(request,clock=lambda:now[0])
+        sockets=[];peers=[];received=[];read_done=threading.Event()
+        healthy_left,healthy_right=socket.socketpair()
+        slow_left,slow_right=socket.socketpair()
+        sockets.extend((healthy_left,healthy_right,slow_left,slow_right))
+        slow_left.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,1024)
+        slow_right.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,1024)
+        def failed(peer,reason):
+            try:peer.request.shutdown(socket.SHUT_RDWR)
+            except OSError:pass
+        def read_healthy():
+            def exact(size):
+                data=b''
+                while len(data)<size:
+                    part=healthy_right.recv(size-len(data))
+                    if not part:raise EOFError
+                    data+=part
+                return data
+            try:
+                while True:
+                    self.assertEqual(b'\xfb',exact(1))
+                    header=exact(6);body=exact(struct.unpack('>I',header[:4])[0]-7)
+                    if body[:3]==b'\xf3\x04\x66':
+                        payload=Reader(body[3:]).params()[245]
+                        bits=Bits(payload);bits.read(32+64+64+8+10)
+                        while bits.pos%8:bits.read(1)
+                        received.append(bits.read(32))
+            except (EOFError,OSError):pass
+            finally:read_done.set()
+        reader=threading.Thread(target=read_healthy);reader.start()
+        try:
+            for actor,connection in ((1,healthy_left),(2,slow_left)):
+                peer=Handler.__new__(Handler);peer.actor=actor;peer.request=connection
+                peer.identity={'account':str(actor)}
+                peer.writer=QueuedWriter(connection,lambda reason,p=peer:failed(p,reason),clock=lambda:now[0])
+                peers.append(peer);timeline.start(peer,request);timeline.add_player(actor,b'player')
+                if actor==2:timeline.snapshot(1,{'tick':timeline.tick,'total_size':1,'last':True,'data':b's'})
+            peers[1].writer.send(b'x'*(32*1024*1024))  # Fill the unread socket on Windows/Linux.
+            item=lambda t,b:{'tick':t,'slot':0,'data':bytes([b])*47,'flags':1}
+            timeline.submit(1,[item(124,1)]);timeline.submit(2,[item(124,2)])
+            timeline.submit(1,[item(t,1) for t in range(125,135)])
+            now[0]+=.26;timeline.service_inputs()
+            for _ in range(9):now[0]+=.02;timeline.service_inputs()
+            self.assertEqual(134,timeline.tick)
+            peers[0].writer.drain(timeout=1)
+            deadline=time.monotonic()+1
+            while (not received or received[-1]<134) and time.monotonic()<deadline:time.sleep(.005)
+            self.assertIn(134,received)
+            self.assertEqual(list(range(124,135)),[tick for tick in received if tick>=124])
+            now[0]+=5;peers[1].writer.check_timeout()
+            self.assertTrue(peers[1].writer.closed)
+            self.assertFalse(peers[0].writer.closed)
+        finally:
+            for peer in peers:peer.writer.close()
+            for connection in sockets:
+                try:connection.shutdown(socket.SHUT_RDWR)
+                except OSError:pass
+                connection.close()
+            reader.join(2)
+            for peer in peers:peer.writer.thread.join(2)
+            self.assertTrue(read_done.is_set())
 
     def test_watchdog_disconnects_stalled_live_socket_and_recovers_other_player(self):
         from room_simulation import ConfirmedRoom
@@ -210,6 +277,22 @@ class TransportTests(unittest.TestCase):
             h.operation(252,{254:9999,251:{Byte(255):'76561197960278073'}})
             self.assertEqual(before,h.room['properties'])
             self.assertEqual(bytes([0xf3,3,252]),h.request.replies[-1][7:10])
+        finally:server.server_close()
+
+    def test_failed_broadcast_recipient_does_not_disconnect_sender(self):
+        class Socket:
+            def sendall(self,_):pass
+        server=Server(('127.0.0.1',0),Handler,allow_room_probe=True)
+        try:
+            peers=[]
+            for number in (1,2):
+                peer=Handler.__new__(Handler);peer.server=server;peer.request=Socket()
+                peer.identity={'account':str(number),'realm':'realm'};peer.role='game';peer.room=None
+                peer.operation(226,{255:'realm'});peers.append(peer)
+            def reject(_):raise OSError('closed recipient')
+            peers[1].send_packet=reject
+            self.assertTrue(peers[0].operation(252,{251:{Byte(253):True}}))
+            self.assertIsNotNone(peers[0].room)
         finally:server.server_close()
 
     @unittest.skipUnless((Path(__file__).resolve().parents[1]/'research/save-bundle-reference.bin').is_file(),'Optional private native save fixture is not distributed')

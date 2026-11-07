@@ -20,6 +20,7 @@ from save_wire import Cycle,cycle_info,chunk,finish_request,finish_response,back
 from quantum_wire import messages
 from room_simulation import ConfirmedRoom
 from shared_saves import SharedSaves
+from transport_writer import QueuedWriter
 
 LOG=Path(os.environ.get('WICKED_TRANSPORT_LOG',str(Path(__file__).resolve().parent/'logs/transport.jsonl')))
 
@@ -54,6 +55,7 @@ class Handler(socketserver.BaseRequestHandler):
         self.send_lock=threading.RLock()
         self.pending_commands=deque()
         self.save_cycles={}
+        self.writer=QueuedWriter(self.request,self.writer_failed)
         emit('connected')
         try:
             while True:
@@ -95,17 +97,28 @@ class Handler(socketserver.BaseRequestHandler):
         except (EOFError,TimeoutError,ConnectionError,OSError,ValueError) as e:
             emit('closed',actor=getattr(self,'actor',None),reason=type(e).__name__,detail=str(e)[:180])
         finally:
+            self.writer.drain()
+            self.writer.close()
+            try:self.request.shutdown(socket.SHUT_RDWR)
+            except OSError:pass
+            self.writer.thread.join(timeout=1)
             self.leave_room()
 
     def send_packet(self,payload):
         self.send_raw(frame(payload))
 
     def send_ping(self,payload):
+        writer=getattr(self,'writer',None)
+        if writer is not None:
+            writer.send(payload,ping=True);return
         # Timestamp inside the same lock as the write, after any queued frame.
         with self.send_lock:
             self.send_raw(b'\xf0'+struct.pack('>I',int(time.monotonic()*1000)&0xffffffff)+payload)
 
     def send_raw(self,payload):
+        writer=getattr(self,'writer',None)
+        if writer is not None:
+            writer.send(payload);return
         # One TCP stream may be written by several players' handler threads.
         # Heartbeats must never be inserted into the middle of a Photon frame.
         lock=getattr(self,'send_lock',None)
@@ -117,6 +130,12 @@ class Handler(socketserver.BaseRequestHandler):
             elapsed=time.monotonic()-started
             if elapsed>=.25:
                 emit('transport-slow-send',actor=getattr(self,'actor',None),bytes=len(payload),seconds=round(elapsed,3))
+
+    def writer_failed(self,reason):
+        try:emit('transport-slow-client-disconnected',actor=getattr(self,'actor',None),reason=reason)
+        finally:
+            try:self.request.shutdown(socket.SHUT_RDWR)
+            except OSError:pass
 
     def leave_room(self):
         room=getattr(self,'room',None)
@@ -185,7 +204,9 @@ class Handler(socketserver.BaseRequestHandler):
                     actors={n:peer.player_properties for n,peer in state['players'].items()}
                     self.send_packet(response(op,{254:self.actor,249:actors,248:props,252:IntArray(tuple(actors))}))
                     joined=event(255,{254:self.actor,252:IntArray(tuple(actors)),249:self.player_properties})
-                    for peer in list(state['players'].values()):peer.send_packet(joined)
+                    for peer in list(state['players'].values()):
+                        try:peer.send_packet(joined)
+                        except OSError:pass  # A failed recipient must not close the joining player.
                     emit('room-member-joined',actor=self.actor,players=len(actors),simulation_ready=False)
             return True
         if self.identity is not None and op==253 and getattr(self,'room',None) is not None:
@@ -314,7 +335,9 @@ class Handler(socketserver.BaseRequestHandler):
             # events use TargetActorNr (253). Omitting 253 makes RealtimeClient
             # apply actor NickName (property 255) as room MaxPlayers (also 255).
             # A SteamID64 nickname then throws Int32 overflow during room join.
-            for peer in list(self.room['players'].values()):peer.send_packet(event(253,{253:target,251:properties}))
+            for peer in list(self.room['players'].values()):
+                try:peer.send_packet(event(253,{253:target,251:properties}))
+                except OSError:pass
             return True
         if self.identity is not None and op==254:
             self.leave_room();self.send_packet(response(op));return True
@@ -329,7 +352,8 @@ class Handler(socketserver.BaseRequestHandler):
                 raise ValueError('Unsupported shared-session identity or protocol')
             with self.server.room_lock:
                 if 'timeline' not in self.room:
-                    self.room['timeline']=ConfirmedRoom(request,log=emit,stall_timeout=self.server.input_stall_timeout)
+                    self.room['timeline']=ConfirmedRoom(request,log=emit,
+                        stall_timeout=self.server.input_stall_timeout,input_wait_timeout=self.server.input_wait_timeout)
                     self.room['shared_saves']=SharedSaves(self.server.game,self.identity['realm'],self.room['timeline'],log=emit)
                 timeline=self.room['timeline']
             timeline.start(self,request)
@@ -433,10 +457,14 @@ class Handler(socketserver.BaseRequestHandler):
 class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address=True
     daemon_threads=True
-    def __init__(self,*args,game=None,allow_room_probe=False,shared_simulation=False,input_stall_timeout=None,**kwargs):
+    def __init__(self,*args,game=None,allow_room_probe=False,shared_simulation=False,
+                 input_stall_timeout=None,input_wait_timeout=None,**kwargs):
         self.input_stall_timeout=float(os.environ.get('WICKED_INPUT_STALL_TIMEOUT','30') if input_stall_timeout is None else input_stall_timeout)
         if not math.isfinite(self.input_stall_timeout) or self.input_stall_timeout<0:
             raise ValueError('Input stall timeout must be finite and nonnegative')
+        self.input_wait_timeout=float(os.environ.get('WICKED_INPUT_WAIT_TIMEOUT','0.25') if input_wait_timeout is None else input_wait_timeout)
+        if not math.isfinite(self.input_wait_timeout) or self.input_wait_timeout<0:
+            raise ValueError('Input wait timeout must be finite and nonnegative')
         self._watchdog_stop=threading.Event()
         super().__init__(*args,**kwargs)
         self.game=game
@@ -449,17 +477,23 @@ class Server(socketserver.ThreadingTCPServer):
         self._watchdog.start()
 
     def _watch_rooms(self):
-        while not self._watchdog_stop.wait(1.0):
+        while not self._watchdog_stop.wait(1.0/60):
             self.check_room_stalls()
 
     def check_room_stalls(self):
         # Never hold the global membership lock while waiting for a room lock
         # or network I/O; handlers acquire membership before the timeline lock.
         with self.room_lock:
-            timelines=[state.get('timeline') for state in self.rooms.values()]
+            rooms=list(self.rooms.values())
+            timelines=[state.get('timeline') for state in rooms]
+            writers=[getattr(peer,'writer',None) for state in rooms for peer in state['players'].values()]
+        for writer in writers:
+            if writer is not None:writer.check_timeout()
         for timeline in timelines:
             if timeline is None:continue
-            try:peers=timeline.check_stalls()
+            try:
+                timeline.service_inputs()
+                peers=timeline.check_stalls()
             except Exception as error:
                 emit('shared-watchdog-error',reason=type(error).__name__,detail=str(error)[:180]);continue
             for peer in peers:
