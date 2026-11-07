@@ -3,6 +3,6 @@
   "port": 8443,
   "join_password": "CHANGE_ME",
   "data_directory": "server-data",
-  "input_wait_timeout": 0.25,
+  "input_wait_timeout": 0.12,
   "input_stall_timeout": 30
 }

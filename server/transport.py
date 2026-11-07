@@ -462,7 +462,7 @@ class Server(socketserver.ThreadingTCPServer):
         self.input_stall_timeout=float(os.environ.get('WICKED_INPUT_STALL_TIMEOUT','30') if input_stall_timeout is None else input_stall_timeout)
         if not math.isfinite(self.input_stall_timeout) or self.input_stall_timeout<0:
             raise ValueError('Input stall timeout must be finite and nonnegative')
-        self.input_wait_timeout=float(os.environ.get('WICKED_INPUT_WAIT_TIMEOUT','0.25') if input_wait_timeout is None else input_wait_timeout)
+        self.input_wait_timeout=float(os.environ.get('WICKED_INPUT_WAIT_TIMEOUT','0.12') if input_wait_timeout is None else input_wait_timeout)
         if not math.isfinite(self.input_wait_timeout) or self.input_wait_timeout<0:
             raise ValueError('Input wait timeout must be finite and nonnegative')
         self._watchdog_stop=threading.Event()

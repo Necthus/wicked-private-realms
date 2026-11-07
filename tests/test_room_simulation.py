@@ -223,6 +223,9 @@ class SharedRoomTests(unittest.TestCase):
 
     def test_timer_expires_wait_without_more_packets_and_does_not_fast_forward(self):
         self.start_first();self.join_second()
+        # This test exercises the timer boundary itself; keep its threshold
+        # explicit so the production default can change independently.
+        self.room.input_wait_timeout=.25
         self.room.submit(1,[self.input(124,1)]);self.room.submit(2,[self.input(124,2)])
         self.room.submit(1,[self.input(t,1) for t in range(125,135)])
         self.now+=.24;self.room.service_inputs();self.assertEqual(124,self.room.tick)

@@ -40,7 +40,7 @@ class Player:
 
 class ConfirmedRoom:
     def __init__(self,request,clock=time.monotonic,log=lambda *a,**kw:None,
-                 stall_timeout=30.0,input_wait_timeout=0.25):
+                 stall_timeout=30.0,input_wait_timeout=0.12):
         if request['initialTick']!=0:raise ValueError('Fresh room requires a fresh session request')
         self.request=copy.deepcopy(request)
         self.config=self.request['config']
