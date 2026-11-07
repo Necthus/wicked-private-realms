@@ -61,6 +61,16 @@ python tools/deploy_native_client.py --game-directory <游戏目录> --release <
 
 `WickedLauncher.exe.config` 源文件在 `native/launcher/`，打包时放在 EXE 旁。`WickedLauncher.exe --smoke-test` 可短暂打开界面并输出 DPI 诊断。发布时 `--binaries-from <已测原生ZIP>` 可复用其三个二进制，并逐一核对包内 SHA-256；普通构建默认使用本地编译结果。更新版本前修改打包脚本的 VERSION。
 
+## 服务端权威模拟实验
+
+`codex/server-authoritative-state-sync` 分支的开发探针用于核对真实游戏运行时、快照恢复和独立状态流。复现命令、已通过的实验与验证范围见 [本机可行性记录](AUTHORITY-FEASIBILITY.md)。`tools/authority_probe/` 中的 JavaScript/Frida 仅用于开发验证，不随正式原生客户端分发。实验性的 `server/authoritative_state.py` 尚未接入默认运行入口。
+
+无图形诊断使用 `python tools/probe_authority_runtime.py --stream --authority-only --player --nographics --seconds 60`。报告分别记录 `nographics_requested` 和 `null_graphics_device_observed`；启用 Null Device 不代表真实模拟已运行。当前 v29466 会在音频相关的游戏核心初始化阶段失败，独立 headless 权威运行时尚未验证。
+
+直接脱离 Unity 加载 IL2CPP 的诊断使用 `python tools/probe_standalone_runtime.py --skip-imgui-eager-init --load-assets`。它在校验游戏指纹后启动隔离子进程；当前可反序列化 30,406 个资源，但游戏专用会话初始化仍失败，`dedicated_server_ready` 保持 false。`--runner-probe` 只用于记录异常，不是服务器启动入口。
+
+当前可供两台实体电脑尝试的房主模拟入口及人工验收步骤见 [双机局域网测试](AUTHORITY-LAN-TEST.md)。该入口每台电脑运行一个游戏，无需第三个模拟游戏进程；尚未完成两台实体电脑的人工游玩验收。
+
 ## 保留的 Python 实现
 
 原 Python 客户端源码（`archive/python-client/client/` 下的入口、身份绑定、网络模块和 JavaScript 适配代码）继续保留，用于历史参考、协议研究与故障排查。它们不参与当前原生客户端运行。`native/launcher/launcher.cs` 为当前和历史方案共用的界面源码；服务端仍使用 Python。
