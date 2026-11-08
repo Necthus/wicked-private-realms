@@ -75,7 +75,8 @@ def run(config_path):
         os.environ['WICKED_TRANSPORT_LOG']=str(directory/'transport.jsonl')
         from transport import Server,Handler
         transport=Server(('127.0.0.1',transport_port),Handler,game=game,allow_room_probe=True,shared_simulation=True,
-                         input_stall_timeout=os.environ.get('WICKED_INPUT_STALL_TIMEOUT',config.get('input_stall_timeout',30)))
+                         input_stall_timeout=os.environ.get('WICKED_INPUT_STALL_TIMEOUT',config.get('input_stall_timeout',30)),
+                         input_wait_timeout=os.environ.get('WICKED_INPUT_WAIT_TIMEOUT',config.get('input_wait_timeout',0.12)))
         transport_port=transport.server_address[1];start(transport)
     context,fingerprint=tls_context(directory,config.get('public_hostname','localhost'),config.get('tls_certificate'),config.get('tls_private_key'))
     port=int(config.get('port',8443))
